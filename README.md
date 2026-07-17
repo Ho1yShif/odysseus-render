@@ -47,10 +47,12 @@ Set these as secrets in the deploy form. All are optional per feature — you on
 
 Set automatically — no action needed: `ODYSSEUS_ADMIN_PASSWORD` (generated), `SEARXNG_SECRET` (generated), plus the internal service wiring.
 
+**Advanced — `ALLOWED_ORIGINS` (CORS):** by default the app locks CORS to its own Render URL (it reads `RENDER_EXTERNAL_URL` automatically), so you don't need to set anything. Only set `ALLOWED_ORIGINS` if you serve the app from a **custom domain** or need to allow **additional origins** — provide a comma-separated list of the full origins (e.g. `https://app.example.com,https://www.example.com`).
+
 ### Using the app
 
 1. Open the `odysseus` service URL once it's live.
-2. Log in as **`admin`**. Find the generated password in the Render Dashboard → the `odysseus` service → **Environment** → `ODYSSEUS_ADMIN_PASSWORD`. Change it after first login.
+2. Log in as **`admin`**. Your admin password is **created for you automatically** at deploy time — you don't set one. Find it in the Render Dashboard → the `odysseus` service → **Environment** → `ODYSSEUS_ADMIN_PASSWORD` (a strong, randomly generated 256-bit value). Copy it to log in, then change it from the app after first login. It's never printed to the logs.
 3. Open **Chat** and send a message — with `OPENAI_API_KEY` set, you'll get a reply.
 4. Open **Deep Research**, enter a question, and run it. It searches the web through the bundled SearXNG (no extra key) and generates a sourced report — a good end-to-end showcase of the deploy.
 
