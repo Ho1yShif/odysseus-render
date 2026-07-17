@@ -1,0 +1,98 @@
+# Render Blueprint for Odysseus — deploy the self-hosted AI workspace in one click.
+# https://render.com/docs/blueprint-spec
+#
+# Three services: the Odysseus web app, a bundled SearXNG (web search) and a
+# bundled ChromaDB (vector store). The web app talks to the two private services
+# over Render's internal network. Fill the provider API keys in the deploy form
+# (they are stored as Render secrets, never committed).
+
+previews:
+  generation: off
+
+services:
+  # ---- Odysseus web app --------------------------------------------------
+  - type: web
+    name: odysseus
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    plan: standard            # 2 GB — in-process fastembed embeddings need headroom
+    region: oregon
+    healthCheckPath: /
+    disk:
+      name: odysseus-data     # SQLite DB, encrypted key store, uploads, embed cache
+      mountPath: /app/data
+      sizeGB: 10
+    envVars:
+      # Auth / security — locked down for a public host by default.
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: LOCALHOST_BYPASS
+        value: "false"
+      - key: SECURE_COOKIES
+        value: "true"         # Render serves HTTPS
+      - key: ODYSSEUS_ADMIN_USER
+        value: admin
+      - key: ODYSSEUS_ADMIN_PASSWORD
+        generateValue: true   # strong first-login password; view it in the dashboard
+      # Storage.
+      - key: DATABASE_URL
+        value: sqlite:///./data/app.db
+      - key: FASTEMBED_CACHE_PATH
+        value: /app/data/fastembed   # persist the local embedding model on the disk
+      # Bundled services (internal network).
+      - key: SEARXNG_INSTANCE
+        value: http://odysseus-searxng:8080
+      - key: CHROMADB_HOST
+        fromService:
+          type: pserv
+          name: odysseus-chromadb
+          property: host
+      - key: CHROMADB_PORT
+        value: "8000"
+      # ---- Provider credentials — set these in the one-click deploy form. ----
+      # All optional per feature: OpenAI powers chat/agents; a search key
+      # (Brave/Tavily/Serper/Google) enriches research beyond the bundled SearXNG;
+      # HF_TOKEN is only for gated Hugging Face models.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATA_BRAVE_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: SERPER_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_PSE_CX
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+
+  # ---- SearXNG (web search) — private ------------------------------------
+  - type: pserv
+    name: odysseus-searxng
+    runtime: docker
+    dockerfilePath: ./searxng.Dockerfile
+    plan: starter
+    region: oregon
+    envVars:
+      - key: SEARXNG_SECRET
+        generateValue: true
+      - key: SEARXNG_BASE_URL
+        value: http://odysseus-searxng:8080/
+
+  # ---- ChromaDB (vector store) — private ---------------------------------
+  - type: pserv
+    name: odysseus-chromadb
+    runtime: image
+    image:
+      url: docker.io/chromadb/chroma:1.0.20
+    plan: starter
+    region: oregon
+    envVars:
+      - key: ANONYMIZED_TELEMETRY
+        value: "FALSE"
+    disk:
+      name: chromadb-data
+      mountPath: /chroma/chroma
+      sizeGB: 5

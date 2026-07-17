@@ -126,7 +126,12 @@ app = FastAPI(
 
 # ========= CORS =========
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://127.0.0.1").split(",")
+# Honor ALLOWED_ORIGINS when set. Otherwise, on Render, default to this
+# service's own public origin (RENDER_EXTERNAL_URL is injected automatically) so
+# a fresh hosted deploy is locked to same-origin with zero configuration; fall
+# back to localhost for local dev. Never a wildcard — allow_credentials is on.
+_default_origins = os.getenv("RENDER_EXTERNAL_URL") or "http://localhost,http://127.0.0.1"
+allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", _default_origins).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
