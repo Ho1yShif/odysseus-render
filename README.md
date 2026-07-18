@@ -36,6 +36,8 @@ Auth is on by default (`AUTH_ENABLED=true`, secure cookies, a generated admin pa
 
 Set these as secrets in the deploy form. All are optional per feature — you only need the keys for the features you'll use.
 
+To restrict `OPENAI_API_KEY`, a key with only the **Chat completions** (`/v1/chat/completions`) permission is enough — embeddings run locally (fastembed) and no other OpenAI endpoint is used. Set everything else to **None**.
+
 | Variable | Needed for | Where to get it |
 |----------|-----------|-----------------|
 | `OPENAI_API_KEY` | Chat, agents, research (LLM calls) | [platform.openai.com](https://platform.openai.com/api-keys) |
