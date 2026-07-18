@@ -14,7 +14,7 @@ if [ ! -s /etc/searxng/settings.yml ] || grep -q '__SEARXNG_SECRET__' /etc/searx
         secret="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
     fi
     mkdir -p /etc/searxng
-    sed "s|__SEARXNG_SECRET__|$secret|g" /tmp/searxng-settings.yml.template > /etc/searxng/settings.yml
+    sed "s|__SEARXNG_SECRET__|$secret|g" /usr/local/share/searxng-settings.yml.template > /etc/searxng/settings.yml
 fi
 
 exec /usr/local/searxng/entrypoint.sh
