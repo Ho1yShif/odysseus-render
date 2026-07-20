@@ -7,7 +7,7 @@
 # provider API keys in the deploy form (stored as Render secrets, never committed).
 
 previews:
-  generation: off
+  generation: "off"
 
 projects:
   - name: odysseus
