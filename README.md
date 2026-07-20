@@ -6,7 +6,7 @@
 
 Deploy **Odysseus** on Render in one click. Get a self-hosted AI workspace — chat, agents, deep research, documents, email, notes, and calendar — running on your own instance with your own API keys.
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Ho1yShif/odysseus)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/render-examples/odysseus)
 
 <p align="center">
   <img src="docs/odysseus-browser.jpg" alt="Odysseus interface">
