@@ -42,7 +42,7 @@ def extract_urls(text: str) -> List[str]:
 # models (Ollama/llama.cpp) that ship under many names. See issue #124.
 _VISION_MODEL_KEYWORDS = (
     # hosted
-    "gpt-4o", "gpt-4.1", "gpt-4.5", "gpt-4-turbo", "gpt-4-vision",
+    "gpt-5.6-sol", "gpt-4.1", "gpt-4.5", "gpt-4-turbo", "gpt-4-vision",
     "claude-sonnet", "claude-opus", "claude-haiku", "gemini",
     # open / local
     "vision", "multimodal", "llava", "bakllava", "moondream", "pixtral", "minicpm",

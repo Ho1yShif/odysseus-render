@@ -94,7 +94,8 @@ def setup_assistant_routes(task_scheduler) -> APIRouter:
 
     async def _get_or_create(owner: str) -> CrewMember:
         """Return the per-owner assistant CrewMember, creating it on demand."""
-        if not owner or owner in RESERVED_USERNAMES:
+        from src.demo import is_demo_owner
+        if not owner or owner in RESERVED_USERNAMES or is_demo_owner(owner):
             raise HTTPException(status_code=400, detail=f"Cannot seed assistant for {owner!r}")
         db = SessionLocal()
         try:

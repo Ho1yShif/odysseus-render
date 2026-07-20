@@ -21,7 +21,7 @@ def test_provision_creates_owner_scoped_endpoint(monkeypatch):
     monkeypatch.setattr(
         cr.copilot, "fetch_models",
         lambda base, token: [
-            {"id": "gpt-4o", "tool_calls": True, "vision": True},
+            {"id": "gpt-5.6-sol", "tool_calls": True, "vision": True},
             {"id": "claude-3.5", "tool_calls": True, "vision": False},
         ],
     )
@@ -29,7 +29,7 @@ def test_provision_creates_owner_scoped_endpoint(monkeypatch):
     res = cr._provision_endpoint("GHTOK", "https://api.githubcopilot.com", "alice")
 
     assert res["base_url"] == "https://api.githubcopilot.com"
-    assert res["models"] == ["gpt-4o", "claude-3.5"]
+    assert res["models"] == ["gpt-5.6-sol", "claude-3.5"]
 
     db = TestSessionLocal()
     try:
@@ -39,14 +39,14 @@ def test_provision_creates_owner_scoped_endpoint(monkeypatch):
         assert ep.is_enabled is True
         assert ep.supports_tools is True
         assert ep.api_key == "GHTOK"  # round-trips through EncryptedText
-        assert json.loads(ep.cached_models) == ["gpt-4o", "claude-3.5"]
+        assert json.loads(ep.cached_models) == ["gpt-5.6-sol", "claude-3.5"]
     finally:
         db.close()
 
 
 def test_provision_refreshes_existing_token(monkeypatch):
     TestSessionLocal = _mem_db(monkeypatch)
-    monkeypatch.setattr(cr.copilot, "fetch_models", lambda base, token: [{"id": "gpt-4o", "tool_calls": True}])
+    monkeypatch.setattr(cr.copilot, "fetch_models", lambda base, token: [{"id": "gpt-5.6-sol", "tool_calls": True}])
 
     first = cr._provision_endpoint("OLD", "https://api.githubcopilot.com", "bob")
     second = cr._provision_endpoint("NEW", "https://api.githubcopilot.com", "bob")

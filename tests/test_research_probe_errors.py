@@ -27,8 +27,8 @@ def test_probe_failure_preserves_upstream_model_errors():
 def test_probe_failure_keeps_api_key_guidance():
     exc = HTTPException(status_code=401, detail="OpenAI authentication failed")
 
-    assert _format_probe_failure("gpt-4o", exc) == (
-        "Model 'gpt-4o' requires an API key. Check your endpoint configuration."
+    assert _format_probe_failure("gpt-5.6-sol", exc) == (
+        "Model 'gpt-5.6-sol' requires an API key. Check your endpoint configuration."
     )
 
 

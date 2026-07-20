@@ -86,6 +86,19 @@ document.addEventListener('DOMContentLoaded', markComposerUserEdited, { once: tr
         if (_agent) _agent.style.display = 'none';
         if (_chat) { _chat.classList.add('active'); _chat.click?.(); }
       }
+      // Demo mode: only the chat surface is reachable server-side (every other
+      // feature 401s by design). Hide every icon-rail control EXCEPT the
+      // chat-only keep-set so the public demo shows a clean chat UI instead of
+      // buttons that silently fail. Allowlist (not denylist) so a feature rail
+      // added later is hidden by default rather than dangling a 401ing button.
+      if (data && data.demo) {
+        const _demoKeep = new Set([
+          'rail-chats', 'rail-new-session', 'rail-theme', 'rail-resize-handle',
+        ]);
+        document.querySelectorAll('#icon-rail [id^="rail-"]').forEach(el => {
+          if (!_demoKeep.has(el.id)) el.style.display = 'none';
+        });
+      }
     } catch (_) { /* DOM not ready or unexpected shape — UI gates are non-fatal */ }
   } catch (_) { /* anonymous / loopback mode — nothing to do */ }
 })();

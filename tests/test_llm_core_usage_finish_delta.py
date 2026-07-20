@@ -44,7 +44,7 @@ class _FakeClient:
         return _FakeStreamCtx(self._lines)
 
 
-def _drive(monkeypatch, lines, model="gpt-4o-test"):
+def _drive(monkeypatch, lines, model="gpt-5.6-sol-test"):
     monkeypatch.setattr(llm_core, "_get_http_client", lambda: _FakeClient(lines))
     monkeypatch.setattr(llm_core, "_is_host_dead", lambda u: False)
     monkeypatch.setattr(llm_core, "note_model_activity", lambda *a, **k: None)

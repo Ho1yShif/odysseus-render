@@ -114,7 +114,7 @@ def test_single_call_chunked_arguments_still_accumulate(monkeypatch):
         _sse({"tool_calls": [{"index": 0, "function": {"arguments": 'cats"}'}}]}),
         "data: [DONE]",
     ]
-    events = _drive(monkeypatch, lines, model="gpt-4o-test")
+    events = _drive(monkeypatch, lines, model="gpt-5.6-sol-test")
     calls = next(e["calls"] for e in events if e.get("type") == "tool_calls")
     assert len(calls) == 1
     assert calls[0]["name"] == "search"
@@ -166,6 +166,6 @@ def test_null_arguments_delta_does_not_drop_sibling_calls(monkeypatch):
         ]}),
         "data: [DONE]",
     ]
-    events = _drive(monkeypatch, lines, model="gpt-4o-test")
+    events = _drive(monkeypatch, lines, model="gpt-5.6-sol-test")
     calls = next(e["calls"] for e in events if e.get("type") == "tool_calls")
     assert sorted(c["name"] for c in calls) == ["first", "second"], calls

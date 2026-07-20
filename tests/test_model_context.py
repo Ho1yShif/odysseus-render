@@ -156,7 +156,7 @@ class TestLookupKnown:
         assert _lookup_known("claude-sonnet-4-5") == 200000
 
     def test_gpt4o(self):
-        assert _lookup_known("gpt-4o") == 128000
+        assert _lookup_known("gpt-5.6-sol") == 1047576
 
     def test_deepseek_r1(self):
         assert _lookup_known("deepseek-r1") == 64000
@@ -185,7 +185,7 @@ class TestLookupKnown:
         assert _lookup_known("o1") == 200000
 
     def test_gpt4o_mini_not_shadowed_by_gpt4(self):
-        assert _lookup_known("gpt-4o-mini") == 128000
+        assert _lookup_known("gpt-4.1-mini") == 1047576
 
     def test_gpt4_base(self):
         assert _lookup_known("gpt-4") == 8192
@@ -264,7 +264,7 @@ class TestGetContextLength:
         monkeypatch.setattr(model_context.httpx, "get", fake_get)
 
         endpoint = "http://100.117.136.97:34521/v1/chat/completions"
-        assert model_context.get_context_length(endpoint, "gpt-4o") == 128000
+        assert model_context.get_context_length(endpoint, "gpt-5.6-sol") == 1047576
 
     def test_configured_proxy_unknown_model_reads_catalog_context(self, monkeypatch):
         # A model missing from the known table (e.g. a new OpenRouter model)

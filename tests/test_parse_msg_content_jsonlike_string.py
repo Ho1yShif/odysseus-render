@@ -40,7 +40,7 @@ def _make_session(sid, owner="alice"):
     db = _TS()
     try:
         db.add(DbSession(id=sid, owner=owner, name="chat",
-                         endpoint_url="http://x", model="gpt-4o",
+                         endpoint_url="http://x", model="gpt-5.6-sol",
                          archived=False, message_count=1))
         db.commit()
     finally:

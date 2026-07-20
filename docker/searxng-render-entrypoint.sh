@@ -14,7 +14,15 @@ if [ ! -s /etc/searxng/settings.yml ] || grep -q '__SEARXNG_SECRET__' /etc/searx
         secret="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
     fi
     mkdir -p /etc/searxng
-    sed "s|__SEARXNG_SECRET__|$secret|g" /usr/local/share/searxng-settings.yml.template > /etc/searxng/settings.yml
+    # Substitute via python (secret passed through the env, not interpolated) so a
+    # sed metachar in SEARXNG_SECRET (&, \, |) can't corrupt the rendered config.
+    SEARXNG_SECRET="$secret" python - <<'PY' > /etc/searxng/settings.yml
+import os
+
+with open("/usr/local/share/searxng-settings.yml.template", encoding="utf-8") as fh:
+    template = fh.read()
+print(template.replace("__SEARXNG_SECRET__", os.environ["SEARXNG_SECRET"]), end="")
+PY
 fi
 
 exec /usr/local/searxng/entrypoint.sh

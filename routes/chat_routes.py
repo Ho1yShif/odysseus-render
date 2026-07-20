@@ -43,6 +43,14 @@ from routes.chat_helpers import (
 )
 from src.action_intents import ToolIntent, classify_tool_intent as _classify_tool_intent
 from src.image_model_ids import looks_like_image_generation_model
+from src.demo import (
+    is_demo_owner,
+    check_demo_limits,
+    demo_client_ip,
+    demo_limit_sse,
+    clamp_demo_output_tokens,
+    apply_demo_session_config,
+)
 from src.tool_policy import (
     WEB_TOOL_NAMES,
     build_effective_tool_policy,
@@ -881,15 +889,30 @@ def setup_chat_routes(
             sess = session_manager.get_session(session)
             owner = effective_user(request)
             _reconcile_selected_route_from_request(request, sess, session, form_data, owner=owner)
-            if _clear_orphaned_session_endpoint(sess, owner=owner):
-                raise HTTPException(400, "Selected model endpoint was removed. Pick another model in Settings.")
-            # Issue #587: picker shows a model from the endpoint cache but
-            # s.model never made it onto the DB row (first-send race after
-            # endpoint setup, or a previous endpoint delete/recreate). Pull
-            # the first cached model off the matching endpoint so the
-            # upstream isn't called with model="" (which surfaces as a
-            # generic 401/503).
-            _recover_empty_session_model(sess, session, owner=owner)
+            # Demo caps: check rate limit + per-session message cap BEFORE any
+            # token spend. A tripped cap renders as a normal assistant turn
+            # (friendly SSE), never a 500 or hang.
+            if is_demo_owner(owner):
+                _demo_msg = check_demo_limits(owner, demo_client_ip(request))
+                if _demo_msg:
+                    return StreamingResponse(
+                        demo_limit_sse(_demo_msg), media_type="text/event-stream"
+                    )
+                # Demo owners have no per-owner ModelEndpoint rows — the pinned
+                # model/endpoint/env-key are authoritative here. Apply them up
+                # front and SKIP the endpoint-row orphan/recovery checks, which
+                # would otherwise clear the (row-less) endpoint and 400.
+                apply_demo_session_config(sess)
+            else:
+                if _clear_orphaned_session_endpoint(sess, owner=owner):
+                    raise HTTPException(400, "Selected model endpoint was removed. Pick another model in Settings.")
+                # Issue #587: picker shows a model from the endpoint cache but
+                # s.model never made it onto the DB row (first-send race after
+                # endpoint setup, or a previous endpoint delete/recreate). Pull
+                # the first cached model off the matching endpoint so the
+                # upstream isn't called with model="" (which surfaces as a
+                # generic 401/503).
+                _recover_empty_session_model(sess, session, owner=owner)
             if not getattr(sess, "model", "").strip():
                 raise HTTPException(
                     400,
@@ -971,6 +994,23 @@ def setup_chat_routes(
         )
         allow_tool_preprocessing = not pre_context_tool_policy.block_all_tool_calls
 
+        # Demo lockdown — force plain chat before build_chat_context runs, since
+        # it (and auto-escalation above) can attach docs / run tools BEFORE the
+        # per-tool privilege gate fires. Belt-and-suspenders with DEMO_PRIVILEGES:
+        # this kills the write/execute/escalation surfaces for the turn.
+        # Web search is intentionally NOT disabled here — demo visitors may use
+        # it; the turn's `use_web` / `allow_web_search` flags are honored as-is.
+        if is_demo_owner(owner):
+            chat_mode = "chat"
+            auto_escalated = False
+            _tool_intent = None
+            use_research = "false"
+            use_rag = "false"
+            do_research = False
+            att_ids = []
+            active_doc_id = ""
+            preset_id = None
+
         # Build shared context (stream path uses enhanced_message for context preface)
         ctx = await build_chat_context(
             sess, request, chat_handler, chat_processor,
@@ -993,6 +1033,11 @@ def setup_chat_routes(
             agent_mode=(chat_mode == "agent"),
             allow_tool_preprocessing=allow_tool_preprocessing,
         )
+
+        # Demo output-token cap: clamp to the tighter of the request value and
+        # DEMO_MAX_OUTPUT_TOKENS (0/None would mean "no cap" downstream).
+        if is_demo_owner(ctx.user):
+            ctx.preset.max_tokens = clamp_demo_output_tokens(ctx.preset.max_tokens)
 
         _research_flags = {"do": do_research}  # Mutable container for generator scope
 

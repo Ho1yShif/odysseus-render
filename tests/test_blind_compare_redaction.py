@@ -46,7 +46,7 @@ with preserve_import_state(*_TEMP_STUBS, "core.session_manager", "routes.session
 def test_public_model_blanks_blind_compare_sessions():
     """A blind-compare helper session ("[CMP] Model A") must not expose its
     real model in the session list — that is the de-anonymization vector."""
-    assert SR._public_model("[CMP] Model A", "gpt-4o") == ""
+    assert SR._public_model("[CMP] Model A", "gpt-5.6-sol") == ""
     assert SR._public_model("[CMP] Model B", "llama-3.1-70b") == ""
 
 
@@ -54,15 +54,15 @@ def test_public_model_blanks_any_cmp_prefixed_session():
     """Defense in depth: even a non-blind [CMP] session (named after the real
     model) gets its model field blanked. The name already carries whatever the
     user chose to reveal, and the session list never needs the raw model."""
-    assert SR._public_model("[CMP] gpt-4o", "gpt-4o") == ""
+    assert SR._public_model("[CMP] gpt-5.6-sol", "gpt-5.6-sol") == ""
 
 
 def test_public_model_preserves_normal_sessions():
     """Ordinary chats are untouched — only the [CMP] prefix triggers redaction.
     The post-vote "Compare: a vs b" folder is a normal session, not a helper."""
-    assert SR._public_model("My research chat", "gpt-4o") == "gpt-4o"
+    assert SR._public_model("My research chat", "gpt-5.6-sol") == "gpt-5.6-sol"
     assert SR._public_model("", "claude-sonnet") == "claude-sonnet"
-    assert SR._public_model("Compare: gpt-4o vs llama", "gpt-4o") == "gpt-4o"
+    assert SR._public_model("Compare: gpt-5.6-sol vs llama", "gpt-5.6-sol") == "gpt-5.6-sol"
 
 
 def test_compare_prefix_constant_matches_frontend():

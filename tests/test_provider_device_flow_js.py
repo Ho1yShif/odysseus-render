@@ -47,7 +47,7 @@ def test_copilot_success_uses_complete_verification_uri():
         polls += 1;
         return response(true, 200, polls === 1
           ? {{ status: 'pending' }}
-          : {{ status: 'authorized', endpoint: {{ id: 'ep1', models: ['gpt-4o'] }} }}
+          : {{ status: 'authorized', endpoint: {{ id: 'ep1', models: ['gpt-5.6-sol'] }} }}
         );
       }};
       const result = await runProviderDeviceFlow('copilot', {{

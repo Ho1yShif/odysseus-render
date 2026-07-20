@@ -21,7 +21,7 @@ projects:
             dockerfilePath: ./Dockerfile.render
             plan: standard            # 2 GB — in-process fastembed embeddings need headroom
             region: oregon
-            healthCheckPath: /
+            healthCheckPath: /api/health
             disk:
               name: odysseus-data     # SQLite DB, encrypted key store, uploads, embed cache
               mountPath: /app/data
@@ -34,6 +34,16 @@ projects:
                 value: "false"
               - key: SECURE_COOKIES
                 value: "true"         # Render serves HTTPS
+              # Trusted proxy hops in front of the app — used by every IP-keyed
+              # rate limiter (auth login/signup/setup AND the demo caps). Render
+              # runs one edge proxy that appends the real client IP to the RIGHT
+              # of X-Forwarded-For, so we read 1 hop from the right (the leftmost
+              # entry is client-spoofable). Bump only if you front this service
+              # with additional trusted proxies. On first traffic the app logs a
+              # one-time "[trusted-ip] X-Forwarded-For sample" line — check it to
+              # confirm this value resolves your true client IP.
+              - key: TRUSTED_PROXY_HOPS
+                value: "1"
               - key: ODYSSEUS_ADMIN_USER
                 value: admin
               - key: ODYSSEUS_ADMIN_PASSWORD
@@ -59,6 +69,8 @@ projects:
               # HF_TOKEN is only for gated Hugging Face models.
               - key: OPENAI_API_KEY
                 sync: false
+              - key: OPENAI_DEFAULT_MODEL
+                value: gpt-5.6-sol          # seeds the default chat model on first boot; change here or in the app
               - key: DATA_BRAVE_API_KEY
                 sync: false
               - key: TAVILY_API_KEY
@@ -71,6 +83,27 @@ projects:
                 sync: false
               - key: HF_TOKEN
                 sync: false
+              # ---- Demo mode — opt-in public showcase (default OFF) -------
+              # DEMO=false keeps the full authenticated app (forks get this).
+              # DEMO=true opens a public, no-signup, locked-down chat demo that
+              # spends this deploy's OPENAI_API_KEY. See README "Demo mode".
+              # NOTE: the rate limit and per-IP daily ceiling below are keyed on
+              # the trusted client IP (Render's proxy-attested XFF), so cookie
+              # clearing / owner churn can't reset them. They bound burn RATE;
+              # they don't replace a hard dollar cap. Set a monthly usage limit on
+              # your OpenAI project for the true ceiling before enabling this.
+              - key: DEMO
+                value: "false"        # opt-in; not a secret. "true"/"1"/"yes" turns it on.
+              - key: DEMO_MODEL
+                value: gpt-5.6-luna   # cheap current OpenAI tier for the demo path (env OPENAI_API_KEY)
+              - key: DEMO_RATE_LIMIT_PER_MINUTE
+                value: "10"           # chat requests/min per client IP; 0 disables this dimension
+              - key: DEMO_MAX_MESSAGES_PER_SESSION
+                value: "30"           # total messages per visitor cookie session (UX friction); 0 disables
+              - key: DEMO_MAX_MESSAGES_PER_IP_PER_DAY
+                value: "200"          # hard per-IP daily message ceiling (the real backstop); 0 disables
+              - key: DEMO_MAX_OUTPUT_TOKENS
+                value: "512"          # cost cap on output tokens per demo LLM call
 
           # ---- SearXNG (web search) — private ----------------------------
           - type: pserv

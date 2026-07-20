@@ -60,7 +60,7 @@ def test_tool_task_cancelled_on_generator_close(monkeypatch):
 
     async def _run():
         gen = al.stream_agent_loop(
-            "https://api.openai.com/v1", "gpt-4o",
+            "https://api.openai.com/v1", "gpt-5.6-sol",
             [{"role": "user", "content": "run sleep 60"}],
             max_rounds=2,
             relevant_tools={"bash"},

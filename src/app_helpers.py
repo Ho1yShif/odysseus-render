@@ -37,6 +37,12 @@ def serve_html_with_nonce(request: Request, file_path: str) -> HTMLResponse:
     template surfaces in 5xx alerting instead of hiding behind a 404. If a
     future caller serves a client-influenced path where 404 is correct, branch
     that at the call site rather than defaulting this shared helper to 404.
+
+    When the request is a demo visitor (``request.state.is_demo``), a tiny
+    synchronous ``window.__ODYSSEUS_DEMO=true`` flag is injected right after
+    ``<head>`` so the SPA's very-early fetch wrapper knows not to bounce demo
+    visitors to /login on the 401s from locked-down endpoints. It's set BEFORE
+    any module script runs, so there's no race.
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -46,6 +52,16 @@ def serve_html_with_nonce(request: Request, file_path: str) -> HTMLResponse:
         raise HTTPException(500, "Internal server error")
     nonce = getattr(request.state, "csp_nonce", "")
     html = html.replace("{{CSP_NONCE}}", nonce)
+    if getattr(request.state, "is_demo", False):
+        flag = f'<script nonce="{nonce}">window.__ODYSSEUS_DEMO=true;</script>'
+        # Insert immediately after the opening <head> so it runs first.
+        lower = html.lower()
+        idx = lower.find("<head>")
+        if idx != -1:
+            cut = idx + len("<head>")
+            html = html[:cut] + flag + html[cut:]
+        else:
+            html = flag + html
     return HTMLResponse(html)
 
 

@@ -5,7 +5,7 @@
 # /app/data is managed and already writable), so the PUID/PGID ownership-repair
 # dance in docker/entrypoint.sh is unnecessary here — we run as root and bind
 # the port Render injects via $PORT.
-set -e
+set -eu
 
 # First-time setup is idempotent (creates auth.json/.env only if missing).
 # || true so a non-critical hiccup never blocks startup — matches entrypoint.sh.
@@ -34,5 +34,13 @@ if not users:
     sys.exit(f"[fatal] admin auth file {AUTH_FILE} has no users — seeding failed")
 PY
 fi
+
+# Seed an OpenAI model endpoint from OPENAI_API_KEY on first boot so chat works
+# out of the box — setting the key alone leaves the model_endpoints table empty,
+# which surfaces as "No chat session active" in the composer. Idempotent (skips
+# if the key is unset or an OpenAI endpoint already exists) and non-fatal: a seed
+# hiccup must not block the deploy — the admin can always add the endpoint from
+# the UI.
+python /app/docker/seed_openai_endpoint.py || true
 
 exec uvicorn app:app --host 0.0.0.0 --port "${PORT:-7000}"

@@ -342,7 +342,21 @@ def setup_session_routes(
         user = effective_user(request)
         endpoint_api_key = ""
         endpoint_base_url = ""
-        _reject_raw_endpoint_url_for_non_admin(request, user, endpoint_id, endpoint_url)
+        # Demo visitors own no ModelEndpoint rows, and apply_demo_session_config
+        # force-pins every demo session to the env key + DEMO_MODEL on each read
+        # (see chat_routes). Discard whatever endpoint the composer posted, pin
+        # the trusted demo pair here, and skip validation + the raw-URL guard:
+        # the client URL is inert (never dialed) and the guard would otherwise
+        # 403 a non-admin demo owner out of ever creating the session — the bug
+        # behind the "No chat session active" composer message.
+        from src.demo import is_demo_request, OPENAI_CHAT_URL, DEMO_MODEL
+        if is_demo_request(request, user):
+            endpoint_id = ""
+            endpoint_url = OPENAI_CHAT_URL
+            model = DEMO_MODEL
+            skip_val = True
+        else:
+            _reject_raw_endpoint_url_for_non_admin(request, user, endpoint_id, endpoint_url)
         if endpoint_id and endpoint_id.strip():
             from core.database import ModelEndpoint
             from src.auth_helpers import owner_filter
@@ -773,7 +787,7 @@ def setup_session_routes(
             if model:
                 # Contains match (mirrors the name filter above). The old
                 # f"%{model}" was a SUFFIX-only match, so filtering by "gpt-4"
-                # dropped "gpt-4o" and over-matched on shared suffixes; it also
+                # dropped "gpt-5.6-sol" and over-matched on shared suffixes; it also
                 # left LIKE wildcards in the user value unescaped.
                 safe_model = model.replace('%', r'\%').replace('_', r'\_')
                 q = q.filter(DbSession.model.ilike(f"%{safe_model}%", escape='\\'))
@@ -912,7 +926,7 @@ def setup_session_routes(
     def create_session_openai(
         request: Request,
         name: str = Form("New Chat (OpenAI)"),
-        model: str = Form("gpt-4o"),
+        model: str = Form("gpt-5.6-sol"),
         rag: str = Form(None)
     ):
         if not OPENAI_API_KEY:

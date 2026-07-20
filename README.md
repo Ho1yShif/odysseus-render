@@ -41,6 +41,7 @@ To restrict `OPENAI_API_KEY`, a key with only the **Chat completions** (`/v1/cha
 | Variable | Needed for | Where to get it |
 |----------|-----------|-----------------|
 | `OPENAI_API_KEY` | Chat, agents, research (LLM calls) | [platform.openai.com](https://platform.openai.com/api-keys) |
+| `OPENAI_DEFAULT_MODEL` | Model seeded as the default chat on first boot (default `gpt-5.6-sol`; change here or in the app) — not a secret | — |
 | `DATA_BRAVE_API_KEY` | Brave web search (optional — SearXNG is bundled) | [brave.com/search/api](https://brave.com/search/api/) |
 | `TAVILY_API_KEY` | Tavily search provider (optional) | [tavily.com](https://tavily.com/) |
 | `SERPER_API_KEY` | Serper search provider (optional) | [serper.dev](https://serper.dev/) |
@@ -55,8 +56,51 @@ Set automatically — no action needed: `ODYSSEUS_ADMIN_PASSWORD` (generated), `
 
 1. Open the `odysseus` service URL once it's live.
 2. Log in as **`admin`**. Your admin password is **created for you automatically** at deploy time — you don't set one. Find it in the Render Dashboard → the `odysseus` service → **Environment** → `ODYSSEUS_ADMIN_PASSWORD` (a strong, randomly generated 256-bit value). Copy it to log in, then change it from the app after first login. It's never printed to the logs.
-3. Open **Chat** and send a message — with `OPENAI_API_KEY` set, you'll get a reply.
+3. Open **Chat** and send a message — with `OPENAI_API_KEY` set, you'll get a reply. On first boot the deploy auto-configures an OpenAI endpoint (default model `OPENAI_DEFAULT_MODEL`), so there's nothing to wire up in the model picker.
 4. Open **Deep Research**, enter a question, and run it. It searches the web through the bundled SearXNG (no extra key) and generates a sourced report — a good end-to-end showcase of the deploy.
+
+> Want to let strangers try the app without an admin password? See **[Demo mode](#demo-mode)** below — a public, no-signup chat surface you can turn on with `DEMO=true`. It's **off by default**, so a fresh deploy stays fully authenticated.
+
+## Demo mode
+
+`DEMO=true` runs a **public, no-signup, locked-down chat demo** on **your** OpenAI key — so anyone with the URL can try the chat without logging in. It is **off by default** (`DEMO=false`): a fresh fork or deploy gets the full authenticated app, unchanged. Only a deliberate `DEMO=true` turns it on.
+
+**How it works.** With the flag on, the login gate opens *for chat only*. Each visitor gets an isolated, ephemeral demo session (an unguessable per-visitor cookie → a synthetic owner) under a least-privilege profile. Everything else — settings, admin, integrations, and every other API route — still requires the admin login exactly as before. The admin account and its password are untouched.
+
+**What the demo can and can't do:**
+
+| Capability | In demo |
+|---|---|
+| Chat (pinned cheap model, capped output) | ✅ on |
+| Shell / code / file tools | ❌ off |
+| File upload & personal-doc RAG | ❌ off |
+| Image generation, TTS / STT | ❌ off |
+| Deep research | ❌ off (expensive per run) |
+| Email, MCP servers, cookbook, task scheduler | ❌ off |
+| Memory writes, API-token minting | ❌ off |
+| Settings / admin / integrations | ❌ off (admin login still required) |
+
+**Abuse & cost limits** (demo-only; the demo spends **your** key, so watch your [OpenAI usage console](https://platform.openai.com/usage)):
+
+| Variable | Default | What it caps |
+|---|---|---|
+| `DEMO_MODEL` | `gpt-5.6-luna` | the pinned (cheap) chat model |
+| `DEMO_MAX_OUTPUT_TOKENS` | `512` | output tokens per reply |
+| `DEMO_RATE_LIMIT_PER_MINUTE` | `10` | chat sends per minute, per client IP |
+| `DEMO_MAX_MESSAGES_PER_SESSION` | `30` | total messages per visitor cookie session (UX friction) |
+| `DEMO_MAX_MESSAGES_PER_IP_PER_DAY` | `200` | hard per-IP daily message ceiling (the real backstop) |
+
+Raise or lower these in the deploy form / `render.yaml`. Set a limit to `0` to disable that one dimension; an unset variable falls back to the default (it **never** means "unlimited"). When a visitor hits a cap they get a friendly "deploy your own to keep going" reply — never an error.
+
+The rate limit and the per-IP daily ceiling are keyed on the **trusted client IP** — the entry Render's proxy attests on `X-Forwarded-For`, read from the right (`TRUSTED_PROXY_HOPS` hops in, default `1`), never the spoofable leftmost value. So clearing cookies or churning the demo session **can't** reset them. The per-session cap is cookie-based, so it's UX friction only; the per-IP ceiling is the volume backstop. Visitors behind one NAT/IP share a bucket — that errs toward more limiting, which is what you want for a cost guard.
+
+> `TRUSTED_PROXY_HOPS` is app-wide, not demo-only: the auth login/signup/setup rate limiters key on the same trusted IP. On first traffic the app logs a one-time `[trusted-ip] X-Forwarded-For sample` line — check it once on your deploy to confirm `1` hop resolves your real client IP (retune if you front the service with extra proxies).
+>
+> **Deploying off Render?** Set `TRUSTED_PROXY_HOPS` to match your topology: `0` if the service is directly internet-facing with **no** proxy in front (the whole `X-Forwarded-For` header is then attacker-supplied, so it's ignored and the limiters key on the real TCP peer), or `N` for `N` trusted proxies. Leaving the default `1` on a proxy-less deploy lets a client spoof `X-Forwarded-For` and bypass every IP-keyed limit.
+
+> **Your real spend ceiling is the OpenAI limit, not these counters.** The caps above bound the burn *rate*; they reduce how fast the key can be spent, they don't cap total dollars. The one true per-call ceiling is `DEMO_MAX_OUTPUT_TOKENS`. For a hard dollar cap, set a [monthly usage limit on your OpenAI project](https://platform.openai.com/settings/organization/limits) — that's what protects the bill if the demo URL is discovered or abused.
+
+**Session isolation & privacy.** Visitors can't see each other's chats (each is scoped to its own synthetic owner), and demo history is **ephemeral** — it lives in memory only and is never written to the deployer's disk. If you host a public demo URL, add a visible "public demo, may reset — don't submit anything sensitive" notice.
 
 ### Scaling for heavy workloads
 

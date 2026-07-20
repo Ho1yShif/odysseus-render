@@ -66,7 +66,7 @@ def test_ask_user_is_emitted_last_and_persisted(monkeypatch):
     chunks = _collect(
         agent_loop.stream_agent_loop(
             "https://api.openai.com/v1",
-            "gpt-4o",
+            "gpt-5.6-sol",
             [{"role": "user", "content": "Ayúdame a elegir un proyecto."}],
             relevant_tools={"ask_user"},
             _is_teacher_run=True,

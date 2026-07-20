@@ -14,7 +14,7 @@ from pathlib import Path
 from core.atomic_io import atomic_write_json, atomic_write_text
 from core.auth import AuthManager, RESERVED_USERNAMES, SetAdminResult, TOKEN_TTL
 from src.constants import DEEP_RESEARCH_DIR, MEMORY_FILE, PASSWORD_MIN_LENGTH, SKILLS_DIR
-from src.rate_limiter import RateLimiter
+from src.rate_limiter import RateLimiter, trusted_client_ip
 from src.settings_scrub import scrub_settings
 from src.settings import (
     load_settings as _load_settings,
@@ -98,7 +98,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     @router.post("/setup")
     async def first_run_setup(body: SetupRequest, request: Request):
         """Create initial admin account. Only works if no accounts exist."""
-        if not _setup_limiter.check(request.client.host):
+        if not _setup_limiter.check(trusted_client_ip(request)):
             raise HTTPException(429, "Too many requests — try again later")
         if auth_manager.is_configured:
             raise HTTPException(400, "Already configured")
@@ -116,7 +116,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     @router.post("/signup")
     async def signup(body: SignupRequest, request: Request):
         """Create a new user account. Only works if signup is enabled by admin."""
-        if not _signup_limiter.check(request.client.host):
+        if not _signup_limiter.check(trusted_client_ip(request)):
             raise HTTPException(429, "Too many requests — try again later")
         if not auth_manager.is_configured:
             raise HTTPException(400, "Run setup first")
@@ -135,7 +135,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
 
     @router.post("/login")
     async def login(body: LoginRequest, request: Request, response: Response):
-        if not _login_limiter.check(request.client.host):
+        if not _login_limiter.check(trusted_client_ip(request)):
             raise HTTPException(429, "Too many requests — try again later")
         # Verify password first
         username = body.username.strip().lower()
@@ -174,10 +174,42 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         return {"ok": True}
 
     @router.get("/status")
-    async def auth_status(request: Request):
+    async def auth_status(request: Request, response: Response):
         token = request.cookies.get(SESSION_COOKIE)
         result = auth_manager.status(token)
         result["signup_enabled"] = auth_manager.signup_enabled
+        # Demo visitors reach this route (it's auth-exempt) with no session
+        # token, so auth_manager.status() reports them unauthenticated. When
+        # DEMO mode is on and the visitor carries a well-formed demo cookie,
+        # surface a synthetic authenticated status + the locked-down privilege
+        # profile so the SPA renders the chat UI (and hides disabled controls)
+        # instead of gating on login. This route is auth-exempt and runs BEFORE
+        # the middleware demo path, so resolve the demo owner from the cookie
+        # directly here. When the visitor has no demo cookie yet, resolve_demo_owner
+        # mints one; set it on the response so an owner is stable even if the SPA
+        # calls /status before GET / (the middleware demo path also sets it). Not
+        # doing so would mint a fresh owner on every such call.
+        try:
+            from src.demo import (
+                DEMO_MODE,
+                resolve_demo_owner,
+                is_demo_owner,
+                set_demo_cookie,
+            )
+            if DEMO_MODE and not result.get("authenticated"):
+                owner, new_cookie = resolve_demo_owner(request)
+                if is_demo_owner(owner):
+                    if new_cookie:
+                        set_demo_cookie(response, new_cookie)
+                    result["configured"] = True
+                    result["authenticated"] = True
+                    result["username"] = owner
+                    result["is_admin"] = False
+                    result["demo"] = True
+                    result["privileges"] = auth_manager.get_privileges(owner)
+                    return result
+        except Exception as e:
+            logger.warning("Demo status resolution failed; falling back: %s", e)
         # Include the caller's effective privileges so the frontend can
         # hide / dim UI controls the user isn't allowed to use. Admins get
         # ADMIN_PRIVILEGES (everything on), regular users get their stored

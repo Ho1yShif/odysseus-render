@@ -86,7 +86,7 @@ class TestFingerprintProvider:
         discovery = ModelDiscovery(default_host="localhost")
         monkeypatch.setattr(
             "src.model_discovery.httpx.get",
-            lambda url, timeout=None: _FakeResponse({"data": [{"id": "gpt-4o"}]}, ok=False),
+            lambda url, timeout=None: _FakeResponse({"data": [{"id": "gpt-5.6-sol"}]}, ok=False),
         )
         assert discovery._fingerprint_provider("localhost", 8000) is None
 

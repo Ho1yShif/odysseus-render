@@ -306,10 +306,10 @@ class TestProbeZaiCoding:
 
 class TestCurateModels:
     def test_known_provider_partitions(self):
-        models = ["gpt-4o", "gpt-4o-mini", "ft:gpt-4o:custom", "some-random-model"]
+        models = ["gpt-5.6-sol", "gpt-5.6-luna", "ft:gpt-5.6-sol:custom", "some-random-model"]
         curated, extra = _curate_models(models, "openai")
-        assert "gpt-4o" in curated
-        assert "gpt-4o-mini" in curated
+        assert "gpt-5.6-sol" in curated
+        assert "gpt-5.6-luna" in curated
         assert "some-random-model" in extra
 
     def test_unknown_provider_returns_all_as_curated(self):
@@ -325,12 +325,12 @@ class TestCurateModels:
         assert "other-model" in extra
 
     def test_curated_sorted_by_priority(self):
-        models = ["gpt-4o-mini", "gpt-4o", "o3"]
+        models = ["gpt-5.6-luna", "gpt-5.6-sol", "o3"]
         curated, _ = _curate_models(models, "openai")
-        # gpt-4o should come before gpt-4o-mini in the curated list priority
-        gpt4o_idx = curated.index("gpt-4o")
-        gpt4o_mini_idx = curated.index("gpt-4o-mini")
-        assert gpt4o_idx < gpt4o_mini_idx
+        # gpt-5.6-sol should come before gpt-5.6-luna in the curated list priority
+        sol_idx = curated.index("gpt-5.6-sol")
+        luna_idx = curated.index("gpt-5.6-luna")
+        assert sol_idx < luna_idx
 
     def test_empty_models(self):
         curated, extra = _curate_models([], "openai")
@@ -377,7 +377,7 @@ class TestCurateModels:
 
 class TestIsChatModel:
     @pytest.mark.parametrize("model_id", [
-        "gpt-4o", "gpt-4o-mini", "claude-sonnet-4", "llama-3.3-70b",
+        "gpt-5.6-sol", "gpt-5.6-luna", "claude-sonnet-4", "llama-3.3-70b",
         "deepseek-chat", "gemini-2.0-flash", "o3",
         "llama-4-scout-17b-16e-instruct",
         "gemma-2b-it", "google/gemma-2b-it",
@@ -394,11 +394,11 @@ class TestIsChatModel:
         assert _is_chat_model(model_id) is False
 
     def test_realtime_excluded(self):
-        assert _is_chat_model("gpt-4o-realtime-preview") is False
+        assert _is_chat_model("gpt-5.6-sol-realtime-preview") is False
 
     def test_audio_preview_is_chat(self):
-        # gpt-4o-audio-preview is a chat model (has "audio" not "gpt-audio")
-        assert _is_chat_model("gpt-4o-audio-preview") is True
+        # gpt-5.6-sol-audio-preview is a chat model (has "audio" not "gpt-audio")
+        assert _is_chat_model("gpt-5.6-sol-audio-preview") is True
 
     def test_gpt_audio_is_not_chat(self):
         assert _is_chat_model("gpt-audio") is False
