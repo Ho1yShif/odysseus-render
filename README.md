@@ -57,7 +57,7 @@ Set automatically — no action needed: `ODYSSEUS_ADMIN_PASSWORD` (generated), `
 1. Open the `odysseus` service URL once it's live.
 2. Log in as **`admin`**. Your admin password is **created for you automatically** at deploy time — you don't set one. Find it in the Render Dashboard → the `odysseus` service → **Environment** → `ODYSSEUS_ADMIN_PASSWORD` (a strong, randomly generated 256-bit value). Copy it to log in, then change it from the app after first login. It's never printed to the logs.
 3. To have chat work out of the gate, set `OPENAI_API_KEY` on the `odysseus` web service's env vars **before first boot**. On startup the deploy seeds an OpenAI endpoint from that key (default model `OPENAI_DEFAULT_MODEL`), so you can open **Chat**, send a message, and get a reply with nothing to wire up in the model picker.
-4. Open **Deep Research**, enter a question, and run it. It searches the web through the bundled SearXNG (no extra key) and generates a sourced report — a good end-to-end showcase of the deploy.
+4. Try **Deep Research**: click **Deep Research** in the tools menu on the left-hand side to open its modal, enter your question, and run it. It searches the web through the bundled SearXNG (no extra key) and generates a sourced report.
 
 > Want to let strangers try the app without an admin password? See **[Demo mode](#demo-mode)** below — a public, no-signup chat surface you can turn on with `DEMO=true`. It's **off by default**, so a fresh deploy stays fully authenticated.
 

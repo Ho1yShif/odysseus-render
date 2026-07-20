@@ -1,53 +1,56 @@
-fastapi
-uvicorn
-python-multipart
-python-dotenv
-httpx
-httpcore>=1.0,<2.0
-pydantic>=2.13.4
-pydantic-settings>=2.14.1
-SQLAlchemy
-pypdf
-beautifulsoup4
-charset-normalizer
-numpy
+# Core runtime dependencies, pinned for reproducible builds.
+# Tested against Python 3.14 (see Dockerfile / Dockerfile.render). Bump
+# deliberately after verifying the app still boots and tests pass.
+fastapi==0.139.2
+uvicorn==0.51.0
+python-multipart==0.0.32
+python-dotenv==1.2.2
+httpx==0.28.1
+httpcore==1.0.9
+pydantic==2.13.4
+pydantic-settings==2.14.2
+SQLAlchemy==2.0.51
+pypdf==6.14.2
+beautifulsoup4==4.15.0
+charset-normalizer==3.4.9
+numpy==2.5.1
 # Vector store + local embeddings for RAG, semantic memory, and tool
 # selection. Used on core agent paths, so installed by default — the app
 # still degrades to keyword fallback if they're ever missing.
 # chromadb-client is the lightweight HTTP client (talks to a standalone
 # ChromaDB service); fastembed runs local ONNX embeddings.
-chromadb-client
-fastembed
-youtube-transcript-api
+chromadb-client==1.5.9
+fastembed==0.8.0
+youtube-transcript-api==1.2.4
 # Markdown rendering for research reports (src/visual_report.py).
 # Imported at module-top so it's a hard core dep, not optional.
-markdown
+markdown==3.10.2
 # HTML sanitizer for rendered research reports (src/visual_report.py). Report
 # content is untrusted (LLM output over crawled pages) and report pages run
 # under a relaxed CSP, so the rendered HTML is allowlist-sanitized.
-nh3
+nh3==0.3.6
 # Calendar .ics import/export (routes/calendar_routes.py).
-icalendar
+icalendar==7.2.0
 # Recurrence rule expansion for calendar events (routes/calendar_routes.py).
 # Imported directly as dateutil.rrule — make it explicit even though caldav
 # pulls it in transitively.
-python-dateutil
+python-dateutil==2.9.0.post0
 # CalDAV sync (src/caldav_sync.py). Handles PROPFIND discovery + REPORT
 # fetch across Radicale, Nextcloud, Apple, Fastmail; we'd be reinventing
 # the protocol without it.
-caldav
-cryptography
-bcrypt
+caldav==3.2.1
+cryptography==49.0.0
+bcrypt==5.0.0
 # Built-in servers use the v1 low-level Server decorator API. MCP SDK v2 is a
 # breaking rewrite, so keep fresh installs on the maintained v1 line until the
 # servers are migrated together.
-mcp<2
-pyotp
-qrcode[pil]
-croniter
-pytest
-pytest-asyncio
+mcp==1.28.1
+pyotp==2.10.0
+qrcode[pil]==8.2
+croniter==6.2.4
+pytest==9.1.1
+pytest-asyncio==1.4.0
 # starlette.testclient prefers httpx2 since Starlette 1.2.0 and warns on every
 # TestClient import when only classic httpx is present. Runtime code keeps
 # using `httpx` above; this is test-client only.
-httpx2
+httpx2==2.7.0
