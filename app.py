@@ -282,6 +282,11 @@ if AUTH_ENABLED:
         "/api/health",
         "/api/version",
         "/login",
+        # Browsers auto-request the domain-root /favicon.ico for tabs and
+        # bookmarks. Without this exemption AuthMiddleware 302→/login, the
+        # browser gets HTML instead of an icon, and falls back to a stale
+        # cached favicon. See the /favicon.ico route below.
+        "/favicon.ico",
     }
     AUTH_EXEMPT_PREFIXES = ["/static"]
     # Dynamic paths whose own handler proves identity via a path-embedded
@@ -947,6 +952,17 @@ async def serve_library(request: Request):
 async def serve_backgrounds(request: Request):
     """Sandbox page for prototyping background effects. No auth required."""
     return serve_html_with_nonce(request, abs_join(BASE_DIR, "static/backgrounds.html"))
+
+@app.get("/favicon.ico")
+async def serve_favicon():
+    """Serve the favicon at the domain root. Browsers request /favicon.ico
+    automatically (independent of the page's <link rel="icon">); serving it
+    here — rather than letting auth redirect it to /login — stops browsers
+    from falling back to a stale cached icon."""
+    return FileResponse(
+        abs_join(STATIC_DIR, "favicon.ico"),
+        media_type="image/x-icon",
+    )
 
 @app.get("/login")
 async def serve_login(request: Request):
