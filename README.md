@@ -22,6 +22,27 @@ This Blueprint provisions three services on Render:
 
 Auth is on by default (`AUTH_ENABLED=true`, secure cookies, a generated admin password), and both helper services are private — only the web app is exposed.
 
+## Architecture
+
+Only `odysseus` is public. It reaches the two helper services over Render's private network, and calls out to your LLM and (optional) search providers with your own API keys.
+
+```
+                        ┌─────────────────────────────┐
+        Internet  ───►  │  odysseus  (public web app) │
+                        │  disk: /app/data            │
+                        └──────┬───────────────┬──────┘
+                               │ private       │ private
+                        ┌──────▼──────┐  ┌──────▼───────────┐
+                        │  searxng    │  │  chromadb        │
+                        │  web search │  │  vector store    │
+                        └──────┬──────┘  └──────────────────┘
+                               │
+                     ┌─────────┴──────────────────────────────┐
+                     │ external APIs (your keys)              │
+                     │  OpenAI · Brave · Tavily · Serper · …  │
+                     └────────────────────────────────────────┘
+```
+
 > This is the **hosted** build. Local-model serving (Cookbook/vLLM/llama.cpp), GPU inference, image upscaling, and host-Docker features from the [upstream project](https://github.com/odysseus-dev/odysseus) don't run on Render and are omitted here; Odysseus uses cloud LLM APIs instead. For the full self-hosted feature set, see the [upstream repo](https://github.com/odysseus-dev/odysseus).
 
 ## Deploy
