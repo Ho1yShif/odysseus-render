@@ -1,0 +1,11 @@
+# Development / test dependencies — NOT installed in the production image.
+# The hosted Render image (Dockerfile.render) installs only requirements.txt,
+# and tests/ is excluded from the build context (.dockerignore), so this test
+# tooling stays out of the shipped container. Install locally with:
+#   pip install -r requirements.txt -r requirements-dev.txt
+pytest==9.1.1
+pytest-asyncio==1.4.0
+# starlette.testclient prefers httpx2 since Starlette 1.2.0 and warns on every
+# TestClient import when only classic httpx is present. Runtime code keeps
+# using `httpx` (in requirements.txt); this is test-client only.
+httpx2==2.7.0

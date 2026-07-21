@@ -48,9 +48,5 @@ mcp==1.28.1
 pyotp==2.10.0
 qrcode[pil]==8.2
 croniter==6.2.4
-pytest==9.1.1
-pytest-asyncio==1.4.0
-# starlette.testclient prefers httpx2 since Starlette 1.2.0 and warns on every
-# TestClient import when only classic httpx is present. Runtime code keeps
-# using `httpx` above; this is test-client only.
-httpx2==2.7.0
+# Test/dev tooling (pytest, pytest-asyncio, httpx2) lives in requirements-dev.txt
+# so it stays out of the production image — see that file.

@@ -10,6 +10,10 @@ Deploy **Odysseus** on Render in one click. Get a self-hosted AI workspace — c
 
 https://github.com/user-attachments/assets/53277926-7b65-4687-8a0a-42878bd549a8
 
+<p align="center">
+  <img src="docs/odysseus-browser.jpg" alt="The Odysseus workspace — chat composer with the sidebar of tools: chat, email, calendar, deep research, notes, tasks, and more" width="800">
+</p>
+
 ## What you get
 
 This Blueprint provisions three services on Render:
