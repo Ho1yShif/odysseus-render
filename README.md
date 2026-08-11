@@ -8,8 +8,6 @@ Deploy **Odysseus** on Render in one click. Get a self-hosted AI workspace — c
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Ho1yShif/odysseus)
 
-https://github.com/user-attachments/assets/53277926-7b65-4687-8a0a-42878bd549a8
-
 <p align="center">
   <img src="docs/odysseus-browser.jpg" alt="The Odysseus workspace — chat composer with the sidebar of tools: chat, email, calendar, deep research, notes, tasks, and more" width="800">
 </p>
