@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Seed an OpenAI model endpoint on first boot of the hosted Render image.
 
 Setting ``OPENAI_API_KEY`` alone does NOT make chat work: the chat send path
@@ -39,55 +40,64 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger("seed_openai_endpoint")
 
-_api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
-if not _api_key:
-    log.info("[seed] OPENAI_API_KEY not set — skipping OpenAI endpoint seed.")
-    raise SystemExit(0)
+DEFAULT_MODEL = "gpt-5.6-sol"
 
-# Imported lazily (after the key check) so a keyless deploy pays no import cost.
-from core.database import ModelEndpoint, SessionLocal, init_db
-from src.settings import load_settings, save_settings
 
-# Tables + migrations are idempotent; the app re-runs init_db() at startup.
-init_db()
+def main() -> int:
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        log.info("[seed] OPENAI_API_KEY not set — skipping OpenAI endpoint seed.")
+        return 0
 
-_model = (os.getenv("OPENAI_DEFAULT_MODEL") or "gpt-5.6-sol").strip() or "gpt-5.6-sol"
+    # Imported lazily (after the key check) so a keyless deploy pays no import cost.
+    from core.database import ModelEndpoint, SessionLocal, init_db
+    from src.settings import load_settings, save_settings
 
-db = SessionLocal()
-try:
-    existing = (
-        db.query(ModelEndpoint)
-        .filter(ModelEndpoint.base_url.like("%api.openai.com%"))
-        .first()
-    )
-    if existing is not None:
-        log.info("[seed] OpenAI endpoint already present (%s) — nothing to do.", existing.id)
-        raise SystemExit(0)
+    # Tables + migrations are idempotent; the app re-runs init_db() at startup.
+    init_db()
 
-    ep_id = str(uuid.uuid4())[:8]
-    ep = ModelEndpoint(
-        id=ep_id,
-        name="OpenAI",
-        base_url="https://api.openai.com/v1",
-        api_key=_api_key,  # EncryptedText encrypts at rest via the shared app key
-        is_enabled=True,
-        model_type="llm",
-        endpoint_kind="api",
-        # Pin (and cache) the default model so the picker + composer work even
-        # when the key can't list /v1/models. A key with Models-read permission
-        # still gets the full list via the app's background refresh.
-        pinned_models=json.dumps([_model]),
-        cached_models=json.dumps([_model]),
-        owner=None,  # shared: visible to the admin and any additional users
-    )
-    db.add(ep)
-    db.commit()
+    model = (os.getenv("OPENAI_DEFAULT_MODEL") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
-    settings = load_settings()
-    settings["default_endpoint_id"] = ep_id
-    settings["default_model"] = _model
-    save_settings(settings)
+    db = SessionLocal()
+    try:
+        existing = (
+            db.query(ModelEndpoint)
+            .filter(ModelEndpoint.base_url.like("%api.openai.com%"))
+            .first()
+        )
+        if existing is not None:
+            log.info("[seed] OpenAI endpoint already present (%s) — nothing to do.", existing.id)
+            return 0
 
-    log.info("[seed] Seeded OpenAI endpoint %s (default model %r).", ep_id, _model)
-finally:
-    db.close()
+        ep_id = str(uuid.uuid4())[:8]
+        ep = ModelEndpoint(
+            id=ep_id,
+            name="OpenAI",
+            base_url="https://api.openai.com/v1",
+            api_key=api_key,  # EncryptedText encrypts at rest via the shared app key
+            is_enabled=True,
+            model_type="llm",
+            endpoint_kind="api",
+            # Pin (and cache) the default model so the picker + composer work even
+            # when the key can't list /v1/models. A key with Models-read permission
+            # still gets the full list via the app's background refresh.
+            pinned_models=json.dumps([model]),
+            cached_models=json.dumps([model]),
+            owner=None,  # shared: visible to the admin and any additional users
+        )
+        db.add(ep)
+        db.commit()
+
+        settings = load_settings()
+        settings["default_endpoint_id"] = ep_id
+        settings["default_model"] = model
+        save_settings(settings)
+
+        log.info("[seed] Seeded OpenAI endpoint %s (default model %r).", ep_id, model)
+    finally:
+        db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

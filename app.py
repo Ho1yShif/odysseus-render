@@ -1075,7 +1075,13 @@ async def _startup_event():
             # visitor page-load. Wipe them on boot so a long-running public demo
             # can't grow the sessions table without bound (bounded by the 1-day
             # demo cookie + each restart). Owner-scoped, so no real user data.
-            _ghosts += _db.query(_DbSess).filter(_DbSess.owner.like("demo-%")).all()
+            #
+            # Gated on DEMO_MODE for the same reason src.demo.is_demo_owner is:
+            # on a normal deploy a `demo-`-prefixed username is an ordinary user
+            # (usernames are only lowercased, so `demo-team` is registerable) and
+            # purging their sessions + messages every boot would be data loss.
+            if DEMO_MODE:
+                _ghosts += _db.query(_DbSess).filter(_DbSess.owner.like("demo-%")).all()
             for _g in _ghosts:
                 _db.query(_DbMsg).filter(_DbMsg.session_id == _g.id).delete()
                 _db.delete(_g)

@@ -31,6 +31,8 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.rate_limiter import RateLimiter, trusted_client_ip
+
 
 def _flag(name: str, default: str = "false") -> bool:
     """Parse a boolean env flag. true/1/yes (any case) is on; all else off."""
@@ -193,12 +195,13 @@ def apply_demo_session_config(session) -> None:
 
 
 # --- Rate + per-session message limits --------------------------------------
-_rate_limiter = None
 # Gate on DEMO_MODE too: a normal fork imports this module (via app.py) but must
 # stay inert, so don't build a limiter it will never consult.
-if DEMO_MODE and DEMO_RATE_LIMIT_PER_MINUTE > 0:
-    from src.rate_limiter import RateLimiter
-    _rate_limiter = RateLimiter(max_requests=DEMO_RATE_LIMIT_PER_MINUTE, window_seconds=60)
+_rate_limiter: Optional[RateLimiter] = (
+    RateLimiter(max_requests=DEMO_RATE_LIMIT_PER_MINUTE, window_seconds=60)
+    if DEMO_MODE and DEMO_RATE_LIMIT_PER_MINUTE > 0
+    else None
+)
 
 _PURGE_AFTER = 60 * 60 * 24  # forget a counter a day after its last activity
 
@@ -285,7 +288,6 @@ def demo_client_ip(request) -> str:
     auth-route limiters agree on which ``X-Forwarded-For`` entry to trust
     (governed by ``TRUSTED_PROXY_HOPS``) — see src/rate_limiter.py.
     """
-    from src.rate_limiter import trusted_client_ip
     return trusted_client_ip(request)
 
 

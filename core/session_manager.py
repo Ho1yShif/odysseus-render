@@ -9,6 +9,7 @@ This is the single place that handles:
 """
 
 import json
+import threading
 import uuid
 import logging
 from datetime import datetime, timezone, timedelta
@@ -23,6 +24,13 @@ from src.upload_handler import reserve_message_upload_references
 from .models import set_session_manager_instance, get_session_manager_instance
 
 logger = logging.getLogger(__name__)
+
+# One-shot guard so a broken ``src.demo`` import can't spam the log from the
+# per-message persist path (_persist_message runs for every message written).
+# Double-checked under a lock so concurrent writers log once, not once-per-thread
+# (mirrors the _logged_demo_import_fail guard in core/auth.py).
+_logged_demo_import_fail = False
+_demo_import_fail_lock = threading.Lock()
 
 
 def _message_timestamp_iso(value: Optional[datetime]) -> Optional[str]:
@@ -239,19 +247,24 @@ class SessionManager:
             # to the import: a swallowed error would fail OPEN (persist a
             # stranger's chat), so fall back to the owner-prefix check inline —
             # matching src.demo.is_demo_owner — rather than dropping the guard.
-            _owner = getattr(db_session, "owner", None)
+            owner = getattr(db_session, "owner", None)
             try:
                 from src.demo import is_demo_owner
-                _is_demo = is_demo_owner(_owner)
+                is_demo = is_demo_owner(owner)
             except Exception as e:
-                logger.warning("Demo owner check unavailable, using prefix fallback: %s", e)
-                _is_demo = bool(_owner) and str(_owner).startswith("demo-")
-            if _is_demo:
+                global _logged_demo_import_fail
+                if not _logged_demo_import_fail:
+                    with _demo_import_fail_lock:
+                        if not _logged_demo_import_fail:
+                            _logged_demo_import_fail = True
+                            logger.warning("Demo owner check unavailable, using prefix fallback: %s", e)
+                is_demo = bool(owner) and str(owner).startswith("demo-")
+            if is_demo:
                 return
 
             missing_upload_id = reserve_message_upload_references(
                 getattr(self, "upload_handler", None),
-                getattr(db_session, "owner", None),
+                owner,
                 message.content,
                 message.metadata,
             )

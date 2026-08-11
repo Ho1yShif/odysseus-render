@@ -18,16 +18,15 @@ import pyotp
 
 logger = logging.getLogger(__name__)
 
+from core.atomic_io import atomic_write_json as _atomic_write_json  # noqa: E402
+from core.middleware import INTERNAL_TOOL_USER  # noqa: E402
+
 # One-shot guard so a broken ``src.demo`` import doesn't spam the log: get_privileges
 # is hot (status, list_users) and runs for every user, demo or not. Double-checked
 # under a lock so concurrent callers log the warning once, not once-per-thread
 # (mirrors the _logged_xff_sample guard in src/rate_limiter.py).
 _logged_demo_import_fail = False
 _demo_import_fail_lock = threading.Lock()
-
-
-from core.atomic_io import atomic_write_json as _atomic_write_json  # noqa: E402
-from core.middleware import INTERNAL_TOOL_USER  # noqa: E402
 
 DEFAULT_PRIVILEGES = {
     "can_use_agent": True,
@@ -50,6 +49,12 @@ DEFAULT_PRIVILEGES = {
 # Admins get everything
 ADMIN_PRIVILEGES = {k: (True if isinstance(v, bool) else (0 if isinstance(v, int) else [])) for k, v in DEFAULT_PRIVILEGES.items()}
 
+ADMIN_PRIVILEGES["allowed_models_restricted"] = False
+# Admins must never be blocked from using models — the generic dict
+# comprehension above flips every boolean default to True, which would be
+# backwards for this sentinel.
+ADMIN_PRIVILEGES["block_all_models"] = False
+
 # Fail-closed profile for a demo owner when src.demo (and thus DEMO_PRIVILEGES)
 # can't be imported at the get_privileges choke point. Defined here so it
 # survives that import failure. Mirrors DEMO_PRIVILEGES's intent — every
@@ -61,11 +66,6 @@ ADMIN_PRIVILEGES = {k: (True if isinstance(v, bool) else (0 if isinstance(v, int
 DEMO_FALLBACK_PRIVILEGES = {k: (False if isinstance(v, bool) else (0 if isinstance(v, int) else [])) for k, v in DEFAULT_PRIVILEGES.items()}
 DEMO_FALLBACK_PRIVILEGES["allowed_models_restricted"] = True
 DEMO_FALLBACK_PRIVILEGES["block_all_models"] = True
-ADMIN_PRIVILEGES["allowed_models_restricted"] = False
-# Admins must never be blocked from using models — the generic dict
-# comprehension above flips every boolean default to True, which would be
-# backwards for this sentinel.
-ADMIN_PRIVILEGES["block_all_models"] = False
 
 from src.constants import AUTH_FILE, PASSWORD_MIN_LENGTH
 DEFAULT_AUTH_PATH = AUTH_FILE
