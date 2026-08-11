@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, Dict, Tuple
 
 from core.auth import RESERVED_USERNAMES
+from src import demo as _demo
 from src.task_action_policy import (
     is_admin_only_task_action,
     owner_has_admin_task_privileges,
@@ -2484,8 +2485,7 @@ class TaskScheduler:
         # check-ins seeded, which then double-fire alongside the human user's
         # check-ins. This was the root cause of the duplicate 'Morning check-in'
         # rows we had to manually clean up.
-        from src.demo import is_demo_owner
-        if not owner or owner in RESERVED_USERNAMES or is_demo_owner(owner):
+        if not owner or owner in RESERVED_USERNAMES or _demo.is_demo_owner(owner):
             logger.info(f"ensure_assistant_defaults: skip synthetic owner {owner!r}")
             return
         from core.database import SessionLocal, CrewMember, ScheduledTask

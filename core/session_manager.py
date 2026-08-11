@@ -18,19 +18,13 @@ from typing import Dict, Optional
 from .database import Session as DbSession, ChatMessage as DbChatMessage, Document as DbDocument, SessionLocal, utcnow_naive
 from .models import Session, ChatMessage
 from src.attachment_refs import persistable_message_content
+from src import demo as _demo
 from src.upload_handler import reserve_message_upload_references
 
 # Re-export singleton accessors from models for convenience
 from .models import set_session_manager_instance, get_session_manager_instance
 
 logger = logging.getLogger(__name__)
-
-# One-shot guard so a broken ``src.demo`` import can't spam the log from the
-# per-message persist path (_persist_message runs for every message written).
-# Double-checked under a lock so concurrent writers log once, not once-per-thread
-# (mirrors the _logged_demo_import_fail guard in core/auth.py).
-_logged_demo_import_fail = False
-_demo_import_fail_lock = threading.Lock()
 
 
 def _message_timestamp_iso(value: Optional[datetime]) -> Optional[str]:
@@ -242,24 +236,9 @@ class SessionManager:
                 return
 
             # Demo history is ephemeral: keep it in the in-memory SessionManager
-            # cache only and never write a stranger's chat to the deployer's
-            # disk. Lazy import avoids a src.demo -> core cycle. Scope the guard
-            # to the import: a swallowed error would fail OPEN (persist a
-            # stranger's chat), so fall back to the owner-prefix check inline —
-            # matching src.demo.is_demo_owner — rather than dropping the guard.
+            # cache only and never write a stranger's chat to the deployer's disk.
             owner = getattr(db_session, "owner", None)
-            try:
-                from src.demo import is_demo_owner
-                is_demo = is_demo_owner(owner)
-            except Exception as e:
-                global _logged_demo_import_fail
-                if not _logged_demo_import_fail:
-                    with _demo_import_fail_lock:
-                        if not _logged_demo_import_fail:
-                            _logged_demo_import_fail = True
-                            logger.warning("Demo owner check unavailable, using prefix fallback: %s", e)
-                is_demo = bool(owner) and str(owner).startswith("demo-")
-            if is_demo:
+            if _demo.is_demo_owner(owner):
                 return
 
             missing_upload_id = reserve_message_upload_references(
@@ -477,17 +456,11 @@ class SessionManager:
             # For demo owners, force the pinned model + endpoint + env OPENAI key
             # authoritatively on every read. This overrides whatever the client
             # sent to /api/session and is never persisted (the key stays
-            # env-only). Lazy import avoids a src.demo -> core cycle.
-            try:
-                from src.demo import is_demo_owner, apply_demo_session_config
-                if is_demo_owner(session.owner):
-                    apply_demo_session_config(session)
-            except Exception as e:
-                logger.warning(
-                    "Demo session-config pin failed for %s; leaving client values: %s",
-                    session_id,
-                    e,
-                )
+            # env-only). Deliberately unguarded: if pinning ever fails, the outer
+            # handler returns False rather than letting the client's own endpoint
+            # values survive on a demo session.
+            if _demo.is_demo_owner(session.owner):
+                _demo.apply_demo_session_config(session)
             return True
         except Exception as e:
             logger.error(f"Error syncing session metadata {session_id}: {e}")

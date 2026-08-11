@@ -12,6 +12,7 @@ from core.models import ChatMessage
 from src.request_models import SessionResponse
 from core.database import Session as DbSession, SessionLocal, Document, GalleryImage, utcnow_naive
 from src.auth_helpers import effective_user, _auth_disabled, owner_filter
+from src import demo as _demo
 from src.session_image_cleanup import _generated_image_path_for_cleanup, session_image_refs
 from src.session_actions import is_session_recently_active
 from src.upload_handler import reserve_message_upload_references
@@ -349,11 +350,10 @@ def setup_session_routes(
         # the client URL is inert (never dialed) and the guard would otherwise
         # 403 a non-admin demo owner out of ever creating the session — the bug
         # behind the "No chat session active" composer message.
-        from src.demo import is_demo_request, OPENAI_CHAT_URL, DEMO_MODEL
-        if is_demo_request(request, user):
+        if _demo.is_demo_request(request, user):
             endpoint_id = ""
-            endpoint_url = OPENAI_CHAT_URL
-            model = DEMO_MODEL
+            endpoint_url = _demo.OPENAI_CHAT_URL
+            model = _demo.DEMO_MODEL
             skip_val = True
         else:
             _reject_raw_endpoint_url_for_non_admin(request, user, endpoint_id, endpoint_url)
@@ -787,7 +787,7 @@ def setup_session_routes(
             if model:
                 # Contains match (mirrors the name filter above). The old
                 # f"%{model}" was a SUFFIX-only match, so filtering by "gpt-4"
-                # dropped "gpt-5.6-sol" and over-matched on shared suffixes; it also
+                # dropped "gpt-4o" and over-matched on shared suffixes; it also
                 # left LIKE wildcards in the user value unescaped.
                 safe_model = model.replace('%', r'\%').replace('_', r'\_')
                 q = q.filter(DbSession.model.ilike(f"%{safe_model}%", escape='\\'))

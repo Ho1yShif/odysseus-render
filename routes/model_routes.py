@@ -30,6 +30,7 @@ from src.endpoint_resolver import (
     build_headers,
 )
 from src.auth_helpers import _auth_disabled, effective_user, owner_filter
+from src import demo as _demo
 
 logger = logging.getLogger(__name__)
 
@@ -320,7 +321,11 @@ def _rewrite_loopback_for_docker(base_url: str, *, container_local: bool = False
 # A model ID matches if it starts with or equals a curated entry.
 _PROVIDER_CURATED = {
     "openai": [
-        "gpt-5.6-sol", "gpt-5.6-luna", "o3", "o4-mini",
+        "gpt-5.6-sol", "gpt-5.6-luna",
+        "gpt-5.2", "gpt-5.2-pro", "gpt-5.2-codex",
+        "gpt-5", "gpt-5-pro", "gpt-5-mini", "gpt-5-nano",
+        "gpt-4o", "gpt-4o-mini", "o3", "o4-mini",
+        "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
         "gpt-image-1.5", "gpt-image-1", "dall-e-3", "tts-1", "whisper-1",
     ],
     "anthropic": [
@@ -2426,9 +2431,8 @@ def setup_model_routes(model_discovery):
         # apply_demo_session_config overrides every demo session to
         # OPENAI_CHAT_URL + DEMO_MODEL + the env key on read anyway, so hand the
         # composer that same pinned pair so it can create the session at all.
-        from src.demo import is_demo_request, OPENAI_CHAT_URL, DEMO_MODEL
-        if is_demo_request(request, _user):
-            return {"endpoint_id": "", "endpoint_url": OPENAI_CHAT_URL, "model": DEMO_MODEL}
+        if _demo.is_demo_request(request, _user):
+            return {"endpoint_id": "", "endpoint_url": _demo.OPENAI_CHAT_URL, "model": _demo.DEMO_MODEL}
         # Admins resolve via the global defaults (they own them, and the
         # scoped resolution was making the picker disappear for them).
         # Regular users get per-user prefs with NO global fallback for the

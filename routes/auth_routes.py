@@ -14,6 +14,7 @@ from pathlib import Path
 from core.atomic_io import atomic_write_json, atomic_write_text
 from core.auth import AuthManager, RESERVED_USERNAMES, SetAdminResult, TOKEN_TTL
 from src.constants import DEEP_RESEARCH_DIR, MEMORY_FILE, PASSWORD_MIN_LENGTH, SKILLS_DIR
+from src import demo as _demo
 from src.rate_limiter import RateLimiter, trusted_client_ip
 from src.settings_scrub import scrub_settings
 from src.settings import (
@@ -189,27 +190,18 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         # mints one; set it on the response so an owner is stable even if the SPA
         # calls /status before GET / (the middleware demo path also sets it). Not
         # doing so would mint a fresh owner on every such call.
-        try:
-            from src.demo import (
-                DEMO_MODE,
-                resolve_demo_owner,
-                is_demo_owner,
-                set_demo_cookie,
-            )
-            if DEMO_MODE and not result.get("authenticated"):
-                owner, new_cookie = resolve_demo_owner(request)
-                if is_demo_owner(owner):
-                    if new_cookie:
-                        set_demo_cookie(response, new_cookie)
-                    result["configured"] = True
-                    result["authenticated"] = True
-                    result["username"] = owner
-                    result["is_admin"] = False
-                    result["demo"] = True
-                    result["privileges"] = auth_manager.get_privileges(owner)
-                    return result
-        except Exception as e:
-            logger.warning("Demo status resolution failed; falling back: %s", e)
+        if _demo.DEMO_MODE and not result.get("authenticated"):
+            owner, new_cookie = _demo.resolve_demo_owner(request)
+            if _demo.is_demo_owner(owner):
+                if new_cookie:
+                    _demo.set_demo_cookie(response, new_cookie)
+                result["configured"] = True
+                result["authenticated"] = True
+                result["username"] = owner
+                result["is_admin"] = False
+                result["demo"] = True
+                result["privileges"] = auth_manager.get_privileges(owner)
+                return result
         # Include the caller's effective privileges so the frontend can
         # hide / dim UI controls the user isn't allowed to use. Admins get
         # ADMIN_PRIVILEGES (everything on), regular users get their stored

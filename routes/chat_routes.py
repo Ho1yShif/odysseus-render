@@ -43,14 +43,7 @@ from routes.chat_helpers import (
 )
 from src.action_intents import ToolIntent, classify_tool_intent as _classify_tool_intent
 from src.image_model_ids import looks_like_image_generation_model
-from src.demo import (
-    is_demo_owner,
-    check_demo_limits,
-    demo_client_ip,
-    demo_limit_sse,
-    clamp_demo_output_tokens,
-    apply_demo_session_config,
-)
+from src import demo as _demo
 from src.tool_policy import (
     WEB_TOOL_NAMES,
     build_effective_tool_policy,
@@ -892,17 +885,17 @@ def setup_chat_routes(
             # Demo caps: check rate limit + per-session message cap BEFORE any
             # token spend. A tripped cap renders as a normal assistant turn
             # (friendly SSE), never a 500 or hang.
-            if is_demo_owner(owner):
-                _demo_msg = check_demo_limits(owner, demo_client_ip(request))
+            if _demo.is_demo_owner(owner):
+                _demo_msg = _demo.check_demo_limits(owner, _demo.demo_client_ip(request))
                 if _demo_msg:
                     return StreamingResponse(
-                        demo_limit_sse(_demo_msg), media_type="text/event-stream"
+                        _demo.demo_limit_sse(_demo_msg), media_type="text/event-stream"
                     )
                 # Demo owners have no per-owner ModelEndpoint rows — the pinned
                 # model/endpoint/env-key are authoritative here. Apply them up
                 # front and SKIP the endpoint-row orphan/recovery checks, which
                 # would otherwise clear the (row-less) endpoint and 400.
-                apply_demo_session_config(sess)
+                _demo.apply_demo_session_config(sess)
             else:
                 if _clear_orphaned_session_endpoint(sess, owner=owner):
                     raise HTTPException(400, "Selected model endpoint was removed. Pick another model in Settings.")
@@ -1000,7 +993,7 @@ def setup_chat_routes(
         # this kills the write/execute/escalation surfaces for the turn.
         # Web search is intentionally NOT disabled here — demo visitors may use
         # it; the turn's `use_web` / `allow_web_search` flags are honored as-is.
-        if is_demo_owner(owner):
+        if _demo.is_demo_owner(owner):
             chat_mode = "chat"
             auto_escalated = False
             _tool_intent = None
@@ -1036,8 +1029,8 @@ def setup_chat_routes(
 
         # Demo output-token cap: clamp to the tighter of the request value and
         # DEMO_MAX_OUTPUT_TOKENS (0/None would mean "no cap" downstream).
-        if is_demo_owner(ctx.user):
-            ctx.preset.max_tokens = clamp_demo_output_tokens(ctx.preset.max_tokens)
+        if _demo.is_demo_owner(ctx.user):
+            ctx.preset.max_tokens = _demo.clamp_demo_output_tokens(ctx.preset.max_tokens)
 
         _research_flags = {"do": do_research}  # Mutable container for generator scope
 

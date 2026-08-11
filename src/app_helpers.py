@@ -2,12 +2,16 @@
 import base64
 import logging
 import os
+import re
 
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
+
+# Opening <head>, with or without attributes (`<head lang="en">`, `<head >`).
+_HEAD_OPEN_RE = re.compile(r"<head[^>]*>", re.IGNORECASE)
 
 def read_if_exists(path: str) -> str:
     """Read file if it exists, return empty string otherwise."""
@@ -42,7 +46,8 @@ def serve_html_with_nonce(request: Request, file_path: str) -> HTMLResponse:
     synchronous ``window.__ODYSSEUS_DEMO=true`` flag is injected right after
     ``<head>`` so the SPA's very-early fetch wrapper knows not to bounce demo
     visitors to /login on the 401s from locked-down endpoints. It's set BEFORE
-    any module script runs, so there's no race.
+    any module script runs, so there's no race. A template with no ``<head>``
+    raises 500 rather than injecting the flag too late to work.
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -54,14 +59,15 @@ def serve_html_with_nonce(request: Request, file_path: str) -> HTMLResponse:
     html = html.replace("{{CSP_NONCE}}", nonce)
     if getattr(request.state, "is_demo", False):
         flag = f'<script nonce="{nonce}">window.__ODYSSEUS_DEMO=true;</script>'
-        # Insert immediately after the opening <head> so it runs first.
-        lower = html.lower()
-        idx = lower.find("<head>")
-        if idx != -1:
-            cut = idx + len("<head>")
-            html = html[:cut] + flag + html[cut:]
-        else:
-            html = flag + html
+        # Insert immediately after the opening <head> so it runs first. A
+        # template without a <head> would put the flag after the fetch wrapper
+        # it's meant to gate, so fail loudly rather than shipping a demo page
+        # that silently bounces visitors to /login.
+        match = _HEAD_OPEN_RE.search(html)
+        if not match:
+            logger.error("No <head> in %s — cannot inject the demo flag", file_path)
+            raise HTTPException(500, "Internal server error")
+        html = html[: match.end()] + flag + html[match.end() :]
     return HTMLResponse(html)
 
 

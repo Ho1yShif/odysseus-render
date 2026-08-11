@@ -20,13 +20,11 @@ logger = logging.getLogger(__name__)
 
 from core.atomic_io import atomic_write_json as _atomic_write_json  # noqa: E402
 from core.middleware import INTERNAL_TOOL_USER  # noqa: E402
-
-# One-shot guard so a broken ``src.demo`` import doesn't spam the log: get_privileges
-# is hot (status, list_users) and runs for every user, demo or not. Double-checked
-# under a lock so concurrent callers log the warning once, not once-per-thread
-# (mirrors the _logged_xff_sample guard in src/rate_limiter.py).
-_logged_demo_import_fail = False
-_demo_import_fail_lock = threading.Lock()
+# src.demo is a leaf module (stdlib + src.rate_limiter), so this is a plain
+# module-top import — no cycle to dodge. Imported as a module, not by name, so
+# DEMO_PRIVILEGES is read through it: a `from ... import DEMO_PRIVILEGES` would
+# bind the dict object and go stale if the module is ever reloaded.
+from src import demo as _demo  # noqa: E402
 
 DEFAULT_PRIVILEGES = {
     "can_use_agent": True,
@@ -54,18 +52,6 @@ ADMIN_PRIVILEGES["allowed_models_restricted"] = False
 # comprehension above flips every boolean default to True, which would be
 # backwards for this sentinel.
 ADMIN_PRIVILEGES["block_all_models"] = False
-
-# Fail-closed profile for a demo owner when src.demo (and thus DEMO_PRIVILEGES)
-# can't be imported at the get_privileges choke point. Defined here so it
-# survives that import failure. Mirrors DEMO_PRIVILEGES's intent — every
-# capability off — but errs harder (blocks all models): this path should never
-# be reached, and if it is we deny everything rather than fall through to the
-# more-permissive DEFAULT_PRIVILEGES. Derived from DEFAULT_PRIVILEGES (every
-# bool→False, int→0, list→[]) so a newly added privilege key defaults to off
-# here automatically instead of silently inheriting the permissive default.
-DEMO_FALLBACK_PRIVILEGES = {k: (False if isinstance(v, bool) else (0 if isinstance(v, int) else [])) for k, v in DEFAULT_PRIVILEGES.items()}
-DEMO_FALLBACK_PRIVILEGES["allowed_models_restricted"] = True
-DEMO_FALLBACK_PRIVILEGES["block_all_models"] = True
 
 from src.constants import AUTH_FILE, PASSWORD_MIN_LENGTH
 DEFAULT_AUTH_PATH = AUTH_FILE
@@ -405,26 +391,9 @@ class AuthManager:
         """Get privileges for a user. Admins get all privileges."""
         # Demo owners (demo-<uuid>) get the least-privilege profile regardless of
         # any stored config — they have no user row anyway. This is the single
-        # choke point that drives per-tool enforcement in chat_routes. Lazy
-        # import keeps src.demo from importing core.auth (cycle). Fail CLOSED: if
-        # the import breaks, a demo owner must NOT fall through to the
-        # more-permissive DEFAULT_PRIVILEGES, so detect the demo- prefix inline
-        # (mirroring src.demo.is_demo_owner, as core/session_manager.py does) and
-        # return the locked-down fallback instead.
-        try:
-            from src.demo import is_demo_owner, DEMO_PRIVILEGES
-        except Exception as e:
-            global _logged_demo_import_fail
-            if not _logged_demo_import_fail:
-                with _demo_import_fail_lock:
-                    if not _logged_demo_import_fail:
-                        _logged_demo_import_fail = True
-                        logger.warning("Demo privilege import failed; applying locked-down fallback: %s", e)
-            if bool(username) and str(username).startswith("demo-"):
-                return {**DEFAULT_PRIVILEGES, **DEMO_FALLBACK_PRIVILEGES}
-        else:
-            if is_demo_owner(username):
-                return {**DEFAULT_PRIVILEGES, **DEMO_PRIVILEGES}
+        # choke point that drives per-tool enforcement in chat_routes.
+        if _demo.is_demo_owner(username):
+            return {**DEFAULT_PRIVILEGES, **_demo.DEMO_PRIVILEGES}
         user = self.users.get(username, {})
         if user.get("is_admin"):
             return dict(ADMIN_PRIVILEGES)

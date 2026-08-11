@@ -262,12 +262,7 @@ if LOCALHOST_BYPASS:
 # locked-down demo session for unauthenticated visitors on the demo route
 # whitelist only; everything else still 302→/login or 401. Forks leave DEMO
 # unset and get the full authenticated app. See src/demo.py.
-from src.demo import (
-    DEMO_MODE,
-    is_demo_allowed as _demo_route_allowed,
-    resolve_demo_owner as _resolve_demo_owner,
-    set_demo_cookie as _set_demo_cookie,
-)
+from src import demo as _demo
 
 if AUTH_ENABLED:
     AUTH_EXEMPT_EXACT = {
@@ -490,14 +485,14 @@ if AUTH_ENABLED:
             # check, so first-run setup/login is unaffected. Mints a per-visitor
             # locked-down synthetic owner, but ONLY on the demo route whitelist;
             # everything else still 302→/login or 401 below.
-            if DEMO_MODE and _demo_route_allowed(request.method, path):
-                owner, new_cookie = _resolve_demo_owner(request)
+            if _demo.DEMO_MODE and _demo.is_demo_allowed(request.method, path):
+                owner, new_cookie = _demo.resolve_demo_owner(request)
                 request.state.current_user = owner
                 request.state.api_token = False
                 request.state.is_demo = True
                 response = await call_next(request)
                 if new_cookie:
-                    _set_demo_cookie(response, new_cookie)
+                    _demo.set_demo_cookie(response, new_cookie)
                 return response
 
             if path.startswith("/api/"):
@@ -1057,11 +1052,7 @@ async def _startup_event():
     logger.info("Application starting up...")
     # Announce which mode booted (normal vs. DEMO) so a misconfigured deploy is
     # obvious in the logs. Inert unless DEMO=true.
-    try:
-        from src.demo import log_startup_mode
-        log_startup_mode(logger)
-    except Exception as e:
-        logger.warning("Failed to log demo startup mode: %s", e)
+    _demo.log_startup_mode(logger)
     webhook_manager.set_loop(asyncio.get_running_loop())
     # Wipe any leftover incognito sessions from previous process — they're
     # ephemeral by design and must not survive a restart.
@@ -1080,7 +1071,7 @@ async def _startup_event():
             # on a normal deploy a `demo-`-prefixed username is an ordinary user
             # (usernames are only lowercased, so `demo-team` is registerable) and
             # purging their sessions + messages every boot would be data loss.
-            if DEMO_MODE:
+            if _demo.DEMO_MODE:
                 _ghosts += _db.query(_DbSess).filter(_DbSess.owner.like("demo-%")).all()
             for _g in _ghosts:
                 _db.query(_DbMsg).filter(_DbMsg.session_id == _g.id).delete()

@@ -259,29 +259,6 @@ def test_get_privileges_returns_locked_profile_for_demo_owner(demo):
     assert privs["allowed_models_restricted"] is True
 
 
-def test_get_privileges_fails_closed_when_demo_import_raises(monkeypatch):
-    # Defense-in-depth (Task 3): if src.demo can't be imported at the choke
-    # point, a demo owner must NOT fall through to the more-permissive
-    # DEFAULT_PRIVILEGES. The demo- prefix is detected inline and the locked-down
-    # fallback profile is returned instead. No `demo` fixture here: patching
-    # sys.modules["src.demo"] would break that fixture's reload-based teardown.
-    import sys
-    from core.auth import AuthManager
-
-    class _Boom:
-        def __getattr__(self, name):
-            raise ImportError("simulated src.demo import failure")
-
-    monkeypatch.setitem(sys.modules, "src.demo", _Boom())
-    am = AuthManager.__new__(AuthManager)
-    privs = am.get_privileges("demo-" + "d" * 32)
-    for off in (
-        "can_use_agent", "can_use_browser", "can_use_bash", "can_use_documents",
-        "can_use_research", "can_generate_images", "can_manage_memory",
-    ):
-        assert privs[off] is False, off
-
-
 # --- ephemeral history (SessionManager._persist_message skip) ---------------
 def test_persist_message_skipped_for_demo_owner(demo, monkeypatch):
     import core.session_manager as SM

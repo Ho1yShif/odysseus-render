@@ -128,10 +128,10 @@ def is_demo_owner(username: Optional[str]) -> bool:
     task_scheduler, chat/auth routes) shares, so the gate can't drift between
     them. Prefix check — does NOT match the literal reserved username "demo".
 
-    NOTE: the import-failure fallback in ``core.auth.get_privileges`` deliberately
-    re-checks the ``demo-`` prefix inline WITHOUT this gate — that path fails
-    closed (locks down) when ``src.demo`` is unimportable and DEMO_MODE is
-    unknowable, which is the safe direction for a broken deploy."""
+    This module is a leaf (stdlib + ``src.rate_limiter`` only), so every caller
+    imports it at module top rather than lazily — there is no cycle to dodge and
+    no import-failure path to fall back to: a broken ``src.demo`` fails the boot
+    loudly instead of silently degrading a live deploy's demo gate."""
     return DEMO_MODE and bool(username) and str(username).startswith(DEMO_OWNER_PREFIX)
 
 
