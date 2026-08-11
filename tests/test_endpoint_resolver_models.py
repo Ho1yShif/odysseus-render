@@ -17,8 +17,8 @@ class _Ep:
 
 class TestFirstChatModel:
     def test_skips_embedding_and_tts(self):
-        models = ["text-embedding-ada-002", "whisper-large-v3", "gpt-4o"]
-        assert _first_chat_model(models) == "gpt-4o"
+        models = ["text-embedding-ada-002", "whisper-large-v3", "gpt-5.6-sol"]
+        assert _first_chat_model(models) == "gpt-5.6-sol"
 
     def test_falls_back_to_first_when_all_non_chat(self):
         assert _first_chat_model(["whisper-large-v3"]) == "whisper-large-v3"

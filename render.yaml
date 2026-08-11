@@ -1,0 +1,135 @@
+# Render Blueprint for Odysseus — deploy the self-hosted AI workspace in one click.
+# https://render.com/docs/blueprint-spec
+#
+# Three services, grouped under an "odysseus" project: the Odysseus web app, a
+# bundled SearXNG (web search) and a bundled ChromaDB (vector store). The web app
+# talks to the two private services over Render's internal network. Fill the
+# provider API keys in the deploy form (stored as Render secrets, never committed).
+
+previews:
+  generation: "off"
+
+projects:
+  - name: odysseus
+    environments:
+      - name: production
+        services:
+          # ---- Odysseus web app ------------------------------------------
+          - type: web
+            name: odysseus
+            runtime: docker
+            dockerfilePath: ./Dockerfile.render
+            plan: standard            # 2 GB — in-process fastembed embeddings need headroom
+            region: oregon
+            healthCheckPath: /api/health
+            disk:
+              name: odysseus-data     # SQLite DB, encrypted key store, uploads, embed cache
+              mountPath: /app/data
+              sizeGB: 10
+            envVars:
+              # Auth / security — locked down for a public host by default.
+              - key: AUTH_ENABLED
+                value: "true"
+              - key: LOCALHOST_BYPASS
+                value: "false"
+              - key: SECURE_COOKIES
+                value: "true"         # Render serves HTTPS
+              # Trusted proxy hops in front of the app — used by every IP-keyed
+              # rate limiter (auth login/signup/setup AND the demo caps). Render
+              # runs one edge proxy that appends the real client IP to the RIGHT
+              # of X-Forwarded-For, so we read 1 hop from the right (the leftmost
+              # entry is client-spoofable). Bump only if you front this service
+              # with additional trusted proxies. On first traffic the app logs a
+              # one-time "[trusted-ip] X-Forwarded-For sample" line — check it to
+              # confirm this value resolves your true client IP.
+              - key: TRUSTED_PROXY_HOPS
+                value: "1"
+              - key: ODYSSEUS_ADMIN_USER
+                value: admin
+              - key: ODYSSEUS_ADMIN_PASSWORD
+                generateValue: true   # strong first-login password; view it in the dashboard
+              # Storage.
+              - key: DATABASE_URL
+                value: sqlite:///./data/app.db
+              - key: FASTEMBED_CACHE_PATH
+                value: /app/data/fastembed   # persist the local embedding model on the disk
+              # Bundled services (internal network).
+              - key: SEARXNG_INSTANCE
+                value: http://odysseus-searxng:8080
+              - key: CHROMADB_HOST
+                fromService:
+                  type: pserv
+                  name: odysseus-chromadb
+                  property: host
+              - key: CHROMADB_PORT
+                value: "8000"
+              # ---- Provider credentials — set these in the one-click deploy form. ----
+              # All optional per feature: OpenAI powers chat/agents; a search key
+              # (Brave/Tavily/Serper/Google) enriches research beyond the bundled SearXNG;
+              # HF_TOKEN is only for gated Hugging Face models.
+              - key: OPENAI_API_KEY
+                sync: false
+              - key: OPENAI_DEFAULT_MODEL
+                value: gpt-5.6-sol          # seeds the default chat model on first boot; change here or in the app
+              - key: DATA_BRAVE_API_KEY
+                sync: false
+              - key: TAVILY_API_KEY
+                sync: false
+              - key: SERPER_API_KEY
+                sync: false
+              - key: GOOGLE_API_KEY
+                sync: false
+              - key: GOOGLE_PSE_CX
+                sync: false
+              - key: HF_TOKEN
+                sync: false
+              # ---- Demo mode — opt-in public showcase (default OFF) -------
+              # DEMO=false keeps the full authenticated app (forks get this).
+              # DEMO=true opens a public, no-signup, locked-down chat demo that
+              # spends this deploy's OPENAI_API_KEY. See README "Demo mode".
+              # NOTE: the rate limit and per-IP daily ceiling below are keyed on
+              # the trusted client IP (Render's proxy-attested XFF), so cookie
+              # clearing / owner churn can't reset them. They bound burn RATE;
+              # they don't replace a hard dollar cap. Set a monthly usage limit on
+              # your OpenAI project for the true ceiling before enabling this.
+              - key: DEMO
+                value: "false"        # opt-in; not a secret. "true"/"1"/"yes" turns it on.
+              - key: DEMO_MODEL
+                value: gpt-5.6-luna   # cheap current OpenAI tier for the demo path (env OPENAI_API_KEY)
+              - key: DEMO_RATE_LIMIT_PER_MINUTE
+                value: "10"           # chat requests/min per client IP; 0 disables this dimension
+              - key: DEMO_MAX_MESSAGES_PER_SESSION
+                value: "30"           # total messages per visitor cookie session (UX friction); 0 disables
+              - key: DEMO_MAX_MESSAGES_PER_IP_PER_DAY
+                value: "200"          # hard per-IP daily message ceiling (the real backstop); 0 disables
+              - key: DEMO_MAX_OUTPUT_TOKENS
+                value: "512"          # cost cap on output tokens per demo LLM call
+
+          # ---- SearXNG (web search) — private ----------------------------
+          - type: pserv
+            name: odysseus-searxng
+            runtime: docker
+            dockerfilePath: ./searxng.Dockerfile
+            plan: starter
+            region: oregon
+            envVars:
+              - key: SEARXNG_SECRET
+                generateValue: true
+              - key: SEARXNG_BASE_URL
+                value: http://odysseus-searxng:8080/
+
+          # ---- ChromaDB (vector store) — private -------------------------
+          - type: pserv
+            name: odysseus-chromadb
+            runtime: image
+            image:
+              url: docker.io/chromadb/chroma:1.0.20
+            plan: starter
+            region: oregon
+            envVars:
+              - key: ANONYMIZED_TELEMETRY
+                value: "FALSE"
+            disk:
+              name: chromadb-data
+              mountPath: /chroma/chroma
+              sizeGB: 5

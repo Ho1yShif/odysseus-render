@@ -102,7 +102,7 @@ def test_native_model_illustrative_bash_fence_not_executed(monkeypatch):
         "```bash\nnpm run plan:articles\n```\n\n"
         "Just paste that into your terminal — I'm not running it for you."
     )
-    events = _run_loop(monkeypatch, "gpt-4o", [guide_only])
+    events = _run_loop(monkeypatch, "gpt-5.6-sol", [guide_only])
     assert exec_calls == [], f"illustrative fence should not be executed, but got: {exec_calls}"
     # No tool-call/action events should be emitted for this round either.
     assert not any(e.get("type") == "tool_call" for e in events), events
@@ -117,7 +117,7 @@ def test_native_model_real_native_tool_call_is_executed(monkeypatch):
     _patch_common(monkeypatch, exec_calls)
     native_calls = [{"name": "bash", "arguments": json.dumps({"command": "echo hi"})}]
     events = _run_loop(
-        monkeypatch, "gpt-4o",
+        monkeypatch, "gpt-5.6-sol",
         ["Sure, let me check that for you."],
         native_calls=native_calls,
         max_rounds=2,

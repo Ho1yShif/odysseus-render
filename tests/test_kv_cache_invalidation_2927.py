@@ -435,7 +435,7 @@ def test_payload_omits_session_id_for_official_openai_api(monkeypatch):
     url = "https://api.openai.com/v1/chat/completions"
     messages = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
 
-    _drain(llm_core.stream_llm(url, "gpt-4o", messages, session_id="session-A"))
+    _drain(llm_core.stream_llm(url, "gpt-5.6-sol", messages, session_id="session-A"))
 
     assert len(captured) == 1
     assert "session_id" not in captured[0]

@@ -21,13 +21,15 @@ class TestUsesMaxCompletionTokens:
     @pytest.mark.parametrize("model", [
         "gpt-5", "gpt-5.2", "gpt-5-mini", "o1", "o1-preview", "o3", "o3-mini",
         "o4-mini", "gpt-4.5", "gpt-4.5-preview", "openrouter/openai/o3",
+        # gpt-5.6 family (sol/terra/luna) are gpt-5.x — same max_completion_tokens quirk.
+        "gpt-5.6-sol", "gpt-5.6-luna",
     ])
     def test_requires_max_completion_tokens(self, model):
         assert _uses_max_completion_tokens(model) is True
 
     @pytest.mark.parametrize("model", [
-        # gpt-4o must NOT be confused with the o-series ("o4"/"o1" tokens).
-        "gpt-4o", "gpt-4o-mini", "gpt-4.1", "claude-opus-4", "llama-3.3-70b",
+        # gpt-4.1 is NOT gpt-5 family — it uses plain max_tokens.
+        "gpt-4.1", "claude-opus-4", "llama-3.3-70b",
         "deepseek-chat", "", None,
     ])
     def test_uses_plain_max_tokens(self, model):

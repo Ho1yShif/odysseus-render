@@ -268,12 +268,14 @@ class ModelDiscovery:
 
         if self.openai_api_key:
             openai_models = [
-                "gpt-5.2-codex",
-                "gpt-4o-mini",
-                "gpt-image-1.5",
-                "gpt-4o",
+                "gpt-5.6-sol",
+                "gpt-5.6-luna",
                 "gpt-5.2",
                 "gpt-5.2-pro",
+                "gpt-5.2-codex",
+                "gpt-4o",
+                "gpt-4o-mini",
+                "gpt-image-1.5",
             ]
             providers.append(
                 {

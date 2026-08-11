@@ -4,8 +4,8 @@ Driven through `node --input-type=module` (same approach as test_compare_js.py);
 skips when `node` is not installed.
 
 Regression: model name -> info/pricing lookups returned the FIRST substring
-match, so "gpt-4o-mini" matched the shorter "gpt-4o" key and was billed at
-gpt-4o rates (~16x) with the wrong context window.
+match, so "gpt-4.1-mini" matched the shorter "gpt-4.1" key and was billed at
+gpt-4.1 rates (~5x) with the wrong context window.
 """
 import json
 import shutil
@@ -18,7 +18,7 @@ _REPO = Path(__file__).resolve().parent.parent
 _HELPER = _REPO / "static" / "js" / "model" / "matchKey.js"
 _HAS_NODE = shutil.which("node") is not None
 
-_KEYS = ["gpt-4o", "gpt-4o-mini", "gpt-4", "o1", "o1-mini", "o1-pro", "o3", "o3-mini"]
+_KEYS = ["gpt-5.6-sol", "gpt-4.1", "gpt-4.1-mini", "gpt-4", "o1", "o1-mini", "o1-pro", "o3", "o3-mini"]
 
 
 def _match(name):
@@ -36,7 +36,7 @@ def _match(name):
 
 @pytest.mark.skipif(not _HAS_NODE, reason="node binary not on PATH")
 def test_prefers_longest_specific_key():
-    assert _match("gpt-4o-mini") == "gpt-4o-mini"
+    assert _match("gpt-4.1-mini") == "gpt-4.1-mini"
     assert _match("o1-mini") == "o1-mini"
     assert _match("o1-pro") == "o1-pro"
     assert _match("o3-mini") == "o3-mini"
@@ -44,5 +44,5 @@ def test_prefers_longest_specific_key():
 
 @pytest.mark.skipif(not _HAS_NODE, reason="node binary not on PATH")
 def test_base_model_and_unknown():
-    assert _match("gpt-4o-2024-08-06") == "gpt-4o"
+    assert _match("gpt-5.6-sol-2024-08-06") == "gpt-5.6-sol"
     assert _match("some-unknown-model") is None

@@ -12,6 +12,7 @@ from core.models import ChatMessage
 from src.request_models import SessionResponse
 from core.database import Session as DbSession, SessionLocal, Document, GalleryImage, utcnow_naive
 from src.auth_helpers import effective_user, _auth_disabled, owner_filter
+from src import demo as _demo
 from src.session_image_cleanup import _generated_image_path_for_cleanup, session_image_refs
 from src.session_actions import is_session_recently_active
 from src.upload_handler import reserve_message_upload_references
@@ -342,7 +343,20 @@ def setup_session_routes(
         user = effective_user(request)
         endpoint_api_key = ""
         endpoint_base_url = ""
-        _reject_raw_endpoint_url_for_non_admin(request, user, endpoint_id, endpoint_url)
+        # Demo visitors own no ModelEndpoint rows, and apply_demo_session_config
+        # force-pins every demo session to the env key + DEMO_MODEL on each read
+        # (see chat_routes). Discard whatever endpoint the composer posted, pin
+        # the trusted demo pair here, and skip validation + the raw-URL guard:
+        # the client URL is inert (never dialed) and the guard would otherwise
+        # 403 a non-admin demo owner out of ever creating the session — the bug
+        # behind the "No chat session active" composer message.
+        if _demo.is_demo_request(request, user):
+            endpoint_id = ""
+            endpoint_url = _demo.OPENAI_CHAT_URL
+            model = _demo.DEMO_MODEL
+            skip_val = True
+        else:
+            _reject_raw_endpoint_url_for_non_admin(request, user, endpoint_id, endpoint_url)
         if endpoint_id and endpoint_id.strip():
             from core.database import ModelEndpoint
             from src.auth_helpers import owner_filter
@@ -912,7 +926,7 @@ def setup_session_routes(
     def create_session_openai(
         request: Request,
         name: str = Form("New Chat (OpenAI)"),
-        model: str = Form("gpt-4o"),
+        model: str = Form("gpt-5.6-sol"),
         rag: str = Form(None)
     ):
         if not OPENAI_API_KEY:

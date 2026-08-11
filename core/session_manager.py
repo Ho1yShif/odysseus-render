@@ -9,6 +9,7 @@ This is the single place that handles:
 """
 
 import json
+import threading
 import uuid
 import logging
 from datetime import datetime, timezone, timedelta
@@ -17,6 +18,7 @@ from typing import Dict, Optional
 from .database import Session as DbSession, ChatMessage as DbChatMessage, Document as DbDocument, SessionLocal, utcnow_naive
 from .models import Session, ChatMessage
 from src.attachment_refs import persistable_message_content
+from src import demo as _demo
 from src.upload_handler import reserve_message_upload_references
 
 # Re-export singleton accessors from models for convenience
@@ -233,9 +235,15 @@ class SessionManager:
                 logger.warning("Dropping message for deleted session %s", session_id)
                 return
 
+            # Demo history is ephemeral: keep it in the in-memory SessionManager
+            # cache only and never write a stranger's chat to the deployer's disk.
+            owner = getattr(db_session, "owner", None)
+            if _demo.is_demo_owner(owner):
+                return
+
             missing_upload_id = reserve_message_upload_references(
                 getattr(self, "upload_handler", None),
-                getattr(db_session, "owner", None),
+                owner,
                 message.content,
                 message.metadata,
             )
@@ -445,6 +453,14 @@ class SessionManager:
             session.owner = getattr(db_session, "owner", None)
             session.is_important = getattr(db_session, "is_important", False) or False
             session.message_count = getattr(db_session, "message_count", session.message_count) or 0
+            # For demo owners, force the pinned model + endpoint + env OPENAI key
+            # authoritatively on every read. This overrides whatever the client
+            # sent to /api/session and is never persisted (the key stays
+            # env-only). Deliberately unguarded: if pinning ever fails, the outer
+            # handler returns False rather than letting the client's own endpoint
+            # values survive on a demo session.
+            if _demo.is_demo_owner(session.owner):
+                _demo.apply_demo_session_config(session)
             return True
         except Exception as e:
             logger.error(f"Error syncing session metadata {session_id}: {e}")

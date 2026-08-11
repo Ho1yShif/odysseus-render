@@ -1,0 +1,38 @@
+# Slim image for hosting Odysseus on Render (render.com).
+#
+# Deliberately drops the local-model / GPU / image-upscaling / host-Docker
+# tooling from the main Dockerfile (Real-ESRGAN wheel build, torch, opencv,
+# cmake, build-essential, nodejs/npm, the Docker CLI) — none of it runs on
+# Render's managed platform — so builds are fast and the image stays small.
+# Core chat, agents, research, documents, email, notes, and calendar (via cloud
+# LLM APIs, SearXNG web search, and ChromaDB) are unaffected.
+FROM python:3.14-slim
+
+# Runtime shared libs only:
+#   libmagic1 -> python-magic content-based MIME sniffing (src/upload_handler.py)
+#   libgomp1  -> onnxruntime, used by fastembed for local ONNX embeddings
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libmagic1 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps first for layer caching.
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# python-magic resolves libmagic at import time; keep it image-only (paired with
+# the libmagic1 system lib installed above) exactly as the main Dockerfile does.
+RUN pip install --no-cache-dir python-magic==0.4.27
+
+# Copy app code.
+COPY . .
+
+# Data / log / cache dirs. /app/data is backed by a persistent Render disk.
+RUN mkdir -p data logs services/cache/search
+
+COPY docker/entrypoint.render.sh /usr/local/bin/entrypoint.render.sh
+RUN chmod +x /usr/local/bin/entrypoint.render.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.render.sh"]

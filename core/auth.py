@@ -18,9 +18,13 @@ import pyotp
 
 logger = logging.getLogger(__name__)
 
-
 from core.atomic_io import atomic_write_json as _atomic_write_json  # noqa: E402
 from core.middleware import INTERNAL_TOOL_USER  # noqa: E402
+# src.demo is a leaf module (stdlib + src.rate_limiter), so this is a plain
+# module-top import — no cycle to dodge. Imported as a module, not by name, so
+# DEMO_PRIVILEGES is read through it: a `from ... import DEMO_PRIVILEGES` would
+# bind the dict object and go stale if the module is ever reloaded.
+from src import demo as _demo  # noqa: E402
 
 DEFAULT_PRIVILEGES = {
     "can_use_agent": True,
@@ -42,6 +46,7 @@ DEFAULT_PRIVILEGES = {
 
 # Admins get everything
 ADMIN_PRIVILEGES = {k: (True if isinstance(v, bool) else (0 if isinstance(v, int) else [])) for k, v in DEFAULT_PRIVILEGES.items()}
+
 ADMIN_PRIVILEGES["allowed_models_restricted"] = False
 # Admins must never be blocked from using models — the generic dict
 # comprehension above flips every boolean default to True, which would be
@@ -384,6 +389,11 @@ class AuthManager:
 
     def get_privileges(self, username: str) -> Dict[str, Any]:
         """Get privileges for a user. Admins get all privileges."""
+        # Demo owners (demo-<uuid>) get the least-privilege profile regardless of
+        # any stored config — they have no user row anyway. This is the single
+        # choke point that drives per-tool enforcement in chat_routes.
+        if _demo.is_demo_owner(username):
+            return {**DEFAULT_PRIVILEGES, **_demo.DEMO_PRIVILEGES}
         user = self.users.get(username, {})
         if user.get("is_admin"):
             return dict(ADMIN_PRIVILEGES)

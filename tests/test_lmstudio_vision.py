@@ -57,8 +57,8 @@ class TestLmStudioSupportsVision:
         assert chat_helpers.lmstudio_supports_vision(self.URL, "not-listed") is None
 
     def test_non_lmstudio_endpoint_returns_none(self, monkeypatch):
-        self._serve(monkeypatch, {"data": [{"id": "gpt-4o"}]})
-        assert chat_helpers.lmstudio_supports_vision(self.URL, "gpt-4o") is None
+        self._serve(monkeypatch, {"data": [{"id": "gpt-5.6-sol"}]})
+        assert chat_helpers.lmstudio_supports_vision(self.URL, "gpt-5.6-sol") is None
 
     def test_empty_model_returns_none(self, monkeypatch):
         self._serve(monkeypatch, self.PAYLOAD)
@@ -74,7 +74,7 @@ class TestLmStudioSupportsVision:
         monkeypatch.setattr(chat_helpers.httpx, "get", tracking_get)
         # A cloud provider host must short-circuit to None with no network probe.
         assert chat_helpers.lmstudio_supports_vision(
-            "https://api.openai.com/v1/chat/completions", "gpt-4o") is None
+            "https://api.openai.com/v1/chat/completions", "gpt-5.6-sol") is None
         assert calls["n"] == 0
 
 

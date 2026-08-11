@@ -118,7 +118,7 @@ def _fake_response(payload):
 
 def test_fetch_models_filters_picker(monkeypatch):
     payload = {"data": [
-        {"id": "gpt-4o", "model_picker_enabled": True,
+        {"id": "gpt-5.6-sol", "model_picker_enabled": True,
          "capabilities": {"supports": {"tool_calls": True, "vision": True}}},
         {"id": "internal-embed", "model_picker_enabled": False,
          "capabilities": {"supports": {"tool_calls": False}}},
@@ -128,8 +128,8 @@ def test_fetch_models_filters_picker(monkeypatch):
     monkeypatch.setattr(copilot.httpx, "get", lambda *a, **k: _fake_response(payload))
     models = copilot.fetch_models("https://api.githubcopilot.com", "TOK")
     ids = {m["id"] for m in models}
-    assert ids == {"gpt-4o", "claude-3.5"}
-    gpt = next(m for m in models if m["id"] == "gpt-4o")
+    assert ids == {"gpt-5.6-sol", "claude-3.5"}
+    gpt = next(m for m in models if m["id"] == "gpt-5.6-sol")
     assert gpt["tool_calls"] is True and gpt["vision"] is True
 
 

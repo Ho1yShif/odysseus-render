@@ -87,7 +87,7 @@ def test_openai_compat_no_space_data_is_parsed(monkeypatch):
         monkeypatch,
         "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         lines,
-        "gpt-4o-test",
+        "gpt-5.6-sol-test",
     )
     assert "".join(_deltas(blob)) == "Hi there"
 
@@ -101,7 +101,7 @@ def test_openai_compat_with_space_still_works(monkeypatch):
         monkeypatch,
         "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         lines,
-        "gpt-4o-test",
+        "gpt-5.6-sol-test",
     )
     assert "".join(_deltas(blob)) == "Yo"
 

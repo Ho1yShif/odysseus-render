@@ -29,7 +29,7 @@ def manager(monkeypatch):
 def _make_session(sid, owner="alice"):
     db = _TS()
     try:
-        db.add(cdb.Session(id=sid, owner=owner, name="chat", model="gpt-4o",
+        db.add(cdb.Session(id=sid, owner=owner, name="chat", model="gpt-5.6-sol",
                            endpoint_url="http://localhost:11434",
                            archived=False, message_count=1))
         db.commit()

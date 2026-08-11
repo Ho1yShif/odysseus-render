@@ -295,8 +295,8 @@ class TestComputeFinalMetrics:
         assert m["time_to_first_token"] == 0
 
     def test_model_returned(self):
-        m = _compute_final_metrics(**self._base_args(model="gpt-4o"))
-        assert m["model"] == "gpt-4o"
+        m = _compute_final_metrics(**self._base_args(model="gpt-5.6-sol"))
+        assert m["model"] == "gpt-5.6-sol"
 
     def test_prep_timings_included(self):
         m = _compute_final_metrics(**self._base_args(

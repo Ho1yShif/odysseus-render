@@ -16,12 +16,12 @@ def test_configured_vision_model_resolution_passes_owner(monkeypatch):
 
     monkeypatch.setattr(ai_interaction, "_resolve_model", fake_resolve_model)
 
-    assert dp._resolve_vl_model("gpt-4o", owner="alice") == (
+    assert dp._resolve_vl_model("gpt-5.6-sol", owner="alice") == (
         "http://example.test/chat/completions",
-        "gpt-4o",
+        "gpt-5.6-sol",
         {"Authorization": "Bearer token"},
     )
-    assert seen == [("gpt-4o", "alice")]
+    assert seen == [("gpt-5.6-sol", "alice")]
 
 
 def test_auto_detected_vision_model_resolution_passes_owner(monkeypatch):
@@ -59,7 +59,7 @@ def test_vision_analysis_uses_owner_scoped_primary_and_fallback(monkeypatch, tmp
         seen["llm"] = (url, model, headers, timeout, messages)
         return "description"
 
-    monkeypatch.setattr(dp, "_load_vl_settings", lambda: {"vision_enabled": True, "vision_model": "gpt-4o"})
+    monkeypatch.setattr(dp, "_load_vl_settings", lambda: {"vision_enabled": True, "vision_model": "gpt-5.6-sol"})
     monkeypatch.setattr(dp, "_resolve_vl_model", fake_resolve_vl_model)
     monkeypatch.setattr(dp, "llm_call", fake_llm_call)
 
@@ -74,7 +74,7 @@ def test_vision_analysis_uses_owner_scoped_primary_and_fallback(monkeypatch, tmp
         "text": "description",
         "model": "vision-primary",
     }
-    assert seen["primary"] == ("gpt-4o", "alice")
+    assert seen["primary"] == ("gpt-5.6-sol", "alice")
     assert seen["fallback_owner"] == "alice"
     assert seen["llm"][:4] == (
         "http://primary.test/chat/completions",

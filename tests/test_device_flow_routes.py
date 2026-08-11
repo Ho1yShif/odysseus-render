@@ -64,7 +64,7 @@ def test_slow_down_updates_poll_interval(monkeypatch):
         calls.append(now[0])
         if len(calls) == 1:
             return device_flow.DeviceFlowPoll.slow_down(interval=10)
-        return device_flow.DeviceFlowPoll.authorized({"id": "ep1", "models": ["gpt-4o"]})
+        return device_flow.DeviceFlowPoll.authorized({"id": "ep1", "models": ["gpt-5.6-sol"]})
 
     client = _client(monkeypatch, now, _start, poll)
     poll_id = client.post("/api/test-device/device/start").json()["poll_id"]
@@ -77,7 +77,7 @@ def test_slow_down_updates_poll_interval(monkeypatch):
     now[0] += 1
     assert client.post("/api/test-device/device/poll", data={"poll_id": poll_id}).json() == {
         "status": "authorized",
-        "endpoint": {"id": "ep1", "models": ["gpt-4o"]},
+        "endpoint": {"id": "ep1", "models": ["gpt-5.6-sol"]},
     }
 
 

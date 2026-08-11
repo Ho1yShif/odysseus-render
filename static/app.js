@@ -185,11 +185,16 @@ function initRailHoverLabels() {
   });
 }
 
-// Redirect to login on 401 from any fetch
+// Redirect to login on 401 from any fetch — EXCEPT in demo mode. A demo
+// visitor is intentionally unauthenticated and only the chat endpoints are
+// whitelisted server-side; every other endpoint 401s by design. Bouncing them
+// to /login would make the public demo unusable, so in demo mode we let those
+// 401s fall through and the corresponding panels simply stay empty. The flag is
+// injected synchronously into <head> before this runs (see serve_html_with_nonce).
 const _origFetch = window.fetch;
 window.fetch = async function(...args) {
   const res = await _origFetch.apply(this, args);
-  if (res.status === 401 && !String(args[0]).includes('/api/auth/')) {
+  if (res.status === 401 && !String(args[0]).includes('/api/auth/') && !window.__ODYSSEUS_DEMO) {
     window.location.href = '/login';
   }
   return res;

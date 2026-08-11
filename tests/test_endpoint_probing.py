@@ -80,8 +80,8 @@ def _resp(status, *, json=None, headers=None, url="https://api.example.com/v1/mo
 
 class TestModelListHelpers:
     @pytest.mark.parametrize("data,expected", [
-        ({"data": [{"id": "gpt-4o"}, {"id": "gpt-4o-mini"}]}, ["gpt-4o", "gpt-4o-mini"]),
-        ({"data": [{"id": None}, {"id": 123}, {"id": "gpt-4o"}]}, ["gpt-4o"]),  # non-string ids dropped
+        ({"data": [{"id": "gpt-5.6-sol"}, {"id": "gpt-5.6-luna"}]}, ["gpt-5.6-sol", "gpt-5.6-luna"]),
+        ({"data": [{"id": None}, {"id": 123}, {"id": "gpt-5.6-sol"}]}, ["gpt-5.6-sol"]),  # non-string ids dropped
         ({"data": ["x", {"id": "ok"}]}, ["ok"]),                                # non-dict entries dropped
         ({"data": []}, []),
         ({"data": "oops"}, []),                                                 # non-list "data"
@@ -111,9 +111,9 @@ class TestProbeEndpointParsing:
         monkeypatch.setattr(
             model_routes.httpx, "get",
             lambda url, headers=None, timeout=None, verify=None, **kwargs: _resp(
-                200, json={"data": [{"id": "gpt-4o"}, {"id": "gpt-4o-mini"}]}),
+                200, json={"data": [{"id": "gpt-5.6-sol"}, {"id": "gpt-5.6-luna"}]}),
         )
-        assert _probe_endpoint("https://api.example.com/v1", "key") == ["gpt-4o", "gpt-4o-mini"]
+        assert _probe_endpoint("https://api.example.com/v1", "key") == ["gpt-5.6-sol", "gpt-5.6-luna"]
 
     def test_parses_ollama_models_format(self, monkeypatch):
         _patch_resolve(monkeypatch)
@@ -173,9 +173,9 @@ class TestProbeEndpointParsing:
         monkeypatch.setattr(
             model_routes.httpx, "get",
             lambda url, headers=None, timeout=None, verify=None, **kwargs: _resp(
-                200, json={"data": [{"id": None}, {"id": 123}, {"id": "gpt-4o"}]}),
+                200, json={"data": [{"id": None}, {"id": 123}, {"id": "gpt-5.6-sol"}]}),
         )
-        assert _probe_endpoint("https://api.example.com/v1", "key") == ["gpt-4o"]
+        assert _probe_endpoint("https://api.example.com/v1", "key") == ["gpt-5.6-sol"]
 
     def test_all_non_string_ids_returns_empty(self, monkeypatch):
         # Every id is non-string -> empty result, no exception, no curated leak.
@@ -335,13 +335,13 @@ class TestProbeSingleModel:
             return _resp(200, json={"choices": [{"message": {"content": "OK"}}]})
 
         monkeypatch.setattr(model_routes.httpx, "post", fake_post)
-        result = _probe_single_model("https://api.example.com/v1", "key", "gpt-4o")
+        result = _probe_single_model("https://api.example.com/v1", "key", "gpt-5.6-sol")
         assert result["status"] == "ok"
         assert "latency_ms" in result
         assert captured["url"] == "https://api.example.com/v1/chat/completions"
 
     @pytest.mark.parametrize("base,api_key,model_id", [
-        ("https://api.example.com/v1", "key", "gpt-4o"),
+        ("https://api.example.com/v1", "key", "gpt-5.6-sol"),
         ("http://localhost:11434/v1", None, "llama3.2"),
         ("https://api.anthropic.com/v1", "sk-ant", "claude-sonnet-4-5"),
     ])

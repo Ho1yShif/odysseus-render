@@ -128,6 +128,8 @@ KNOWN_CONTEXT_WINDOWS = {
     'gpt-4.1': 1047576,
     'gpt-4.1-mini': 1047576,
     'gpt-4.1-nano': 1047576,
+    'gpt-5.6-sol': 1047576,
+    'gpt-5.6-luna': 1047576,
     'gpt-4o': 128000,
     'gpt-4o-mini': 128000,
     'gpt-4-turbo': 128000,
